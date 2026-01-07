@@ -18,55 +18,82 @@ st.set_page_config(
 # --- 스타일링 (CSS) ---
 st.markdown("""
 <style>
-    /* 전체 폰트 및 배경 - 밝은 테마 */
+    /* 시스템 다크모드 무시 - 항상 라이트 테마로 고정 */
     .stApp {
-        background-color: #f8f9fa;
-        color: #212529;
+        background-color: #ffffff !important;
+        color: #212529 !important;
+    }
+    
+    /* 메인 컨테이너 배경 고정 */
+    .main .block-container {
+        background-color: #ffffff !important;
+    }
+    
+    /* 전체 body 배경 */
+    body {
+        background-color: #ffffff !important;
+        color: #212529 !important;
     }
     
     /* 헤더 스타일 */
-    h1, h2, h3 {
+    h1, h2, h3, h4, h5, h6 {
         font-family: 'Helvetica Neue', sans-serif;
         font-weight: 700;
-        color: #1a1a1a;
+        color: #1a1a1a !important;
+    }
+    
+    /* 일반 텍스트 */
+    p, span, div, label {
+        color: #212529 !important;
     }
     
     /* 탭 스타일 - 모바일 최적화 */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
+        background-color: #ffffff !important;
     }
     .stTabs [data-baseweb="tab"] {
         height: 50px;
         white-space: nowrap;
-        background-color: #e9ecef;
+        background-color: #e9ecef !important;
         border-radius: 4px;
-        color: #495057;
+        color: #495057 !important;
         padding: 10px 12px;
         font-size: 14px;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #0d6efd;
-        color: white;
+        background-color: #0d6efd !important;
+        color: white !important;
     }
     
     /* 메트릭 박스 */
     div[data-testid="stMetricValue"] {
         font-size: 24px;
-        color: #0d6efd;
+        color: #0d6efd !important;
+    }
+    div[data-testid="stMetricLabel"] {
+        color: #212529 !important;
     }
     
     /* 테이블 스타일 */
     div[data-testid="stDataFrame"] {
         width: 100%;
+        background-color: #ffffff !important;
     }
     
     /* 테이블 내 텍스트 가독성 향상 */
     table {
         color: #212529 !important;
+        background-color: #ffffff !important;
     }
     
     th {
         background-color: #dee2e6 !important;
+        color: #212529 !important;
+    }
+    
+    td {
+        background-color: #ffffff !important;
         color: #212529 !important;
     }
     
@@ -79,6 +106,25 @@ st.markdown("""
     details summary {
         background-color: #f8f9fa !important;
         color: #212529 !important;
+    }
+    
+    details {
+        background-color: #ffffff !important;
+    }
+    
+    /* Markdown 텍스트 */
+    .stMarkdown {
+        color: #212529 !important;
+    }
+    
+    /* Caption 텍스트 */
+    .css-1629p8f, [data-testid="stCaptionContainer"] {
+        color: #6c757d !important;
+    }
+    
+    /* Sidebar (사용시) */
+    section[data-testid="stSidebar"] {
+        background-color: #f8f9fa !important;
     }
 </style>
 """, unsafe_allow_html=True)

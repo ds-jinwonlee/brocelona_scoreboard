@@ -1,0 +1,15 @@
+[theme]
+# 시스템 테마와 상관없이 항상 라이트 모드로 고정
+primaryColor = "#0d6efd"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f8f9fa"
+textColor = "#212529"
+font = "sans serif"
+
+[server]
+# 모바일 최적화
+enableCORS = false
+enableXsrfProtection = false
+
+[browser]
+gatherUsageStats = false

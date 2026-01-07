@@ -41,8 +41,8 @@ env/
 .env
 .env.local
 
-# Streamlit
-.streamlit/
+# Streamlit (config.toml은 배포를 위해 추적, secrets만 무시)
+.streamlit/secrets.toml
 
 # Data (if needed, uncomment to ignore data files)
 # data/*.tsv
