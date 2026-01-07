@@ -576,6 +576,7 @@ with tab3:
                 name=f'{team} (주차별)',
                 marker_color=team_colors[team],
                 opacity=0.6,
+                width=0.25,
                 legendgroup=team
             ),
             secondary_y=False
@@ -647,6 +648,7 @@ with tab3:
                 name=f'{team} (주차별)',
                 marker_color=team_colors[team],
                 opacity=0.6,
+                width=0.25,
                 legendgroup=team
             ),
             secondary_y=False
@@ -722,6 +724,7 @@ with tab3:
                 name=f'{team} (주차별)',
                 marker_color=team_colors[team],
                 opacity=0.6,
+                width=0.25,
                 legendgroup=team
             ),
             secondary_y=False
@@ -791,6 +794,7 @@ with tab3:
                 name=f'{team} (주차별)',
                 marker_color=team_colors[team],
                 opacity=0.6,
+                width=0.25,
                 legendgroup=team
             ),
             secondary_y=False
