@@ -537,44 +537,292 @@ with tab2:
 # 탭 3: 트렌드 분석
 # ==========================================
 with tab3:
-    st.subheader("주간 승점 누적 그래프")
-    
-    # 주차별 누적 승점 계산
-    # df_history: Week, Team, PointsGained
-    # 모든 주차, 모든 팀에 대한 데이터 확보 필요 (경기가 없어도 승점은 유지되므로)
+    st.subheader("📊 주차별 추이 분석")
     
     all_weeks = sorted(df_history['Week'].unique())
     teams_list = ['레드', '블루', '옐로']
+    team_colors = {'레드': '#ef4444', '블루': '#3b82f6', '옐로': '#eab308'}
     
-    cumulative_data = []
+    # ========== 1. 승점 복합 그래프 ==========
+    st.markdown("### 🏆 승점 추이 (주차별 + 누적)")
+    
+    # 주차별 승점 데이터 준비
+    weekly_points_data = []
+    cumulative_points_data = []
     
     for team in teams_list:
         cum_points = 0
         for w in all_weeks:
-            # 해당 주차 획득 승점
             week_p = df_history[(df_history['Week'] == w) & (df_history['Team'] == team)]['PointsGained'].sum()
             cum_points += week_p
-            cumulative_data.append({'Week': w, 'Team': team, 'CumulativePoints': cum_points})
-            
-    df_trend = pd.DataFrame(cumulative_data)
+            weekly_points_data.append({'Week': w, 'Team': team, 'Points': week_p})
+            cumulative_points_data.append({'Week': w, 'Team': team, 'CumulativePoints': cum_points})
     
-    # 라인 차트
-    fig_trend = px.line(
-        df_trend, 
-        x='Week', 
-        y='CumulativePoints', 
-        color='Team',
-        markers=True,
-        color_discrete_map={'레드': '#ef4444', '블루': '#3b82f6', '옐로': '#eab308'}
-    )
+    df_weekly_points = pd.DataFrame(weekly_points_data)
+    df_cumulative_points = pd.DataFrame(cumulative_points_data)
     
-    fig_trend.update_layout(
-        xaxis=dict(tickmode='linear', dtick=1),
-        yaxis=dict(showgrid=True, gridcolor='#ddd'),
+    # 이중 Y축 그래프 생성
+    from plotly.subplots import make_subplots
+    
+    fig_points = make_subplots(specs=[[{"secondary_y": True}]])
+    
+    # 막대 그래프 (주차별 승점)
+    for team in teams_list:
+        team_data = df_weekly_points[df_weekly_points['Team'] == team]
+        fig_points.add_trace(
+            go.Bar(
+                x=team_data['Week'],
+                y=team_data['Points'],
+                name=f'{team} (주차별)',
+                marker_color=team_colors[team],
+                opacity=0.6,
+                legendgroup=team
+            ),
+            secondary_y=False
+        )
+    
+    # 선 그래프 (누적 승점)
+    for team in teams_list:
+        team_data = df_cumulative_points[df_cumulative_points['Team'] == team]
+        fig_points.add_trace(
+            go.Scatter(
+                x=team_data['Week'],
+                y=team_data['CumulativePoints'],
+                name=f'{team} (누적)',
+                line=dict(color=team_colors[team], width=3),
+                mode='lines+markers',
+                legendgroup=team
+            ),
+            secondary_y=True
+        )
+    
+    fig_points.update_xaxes(title_text="주차", tickmode='linear', dtick=1)
+    fig_points.update_yaxes(title_text="주차별 승점", secondary_y=False)
+    fig_points.update_yaxes(title_text="누적 승점", secondary_y=True)
+    
+    fig_points.update_layout(
+        barmode='group',
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
-        font_color='#212529'
+        font_color='#212529',
+        hovermode='x unified',
+        height=400
     )
     
-    st.plotly_chart(fig_trend, use_container_width=True)
+    st.plotly_chart(fig_points, use_container_width=True)
+    
+    # ========== 2. 득점 복합 그래프 ==========
+    st.markdown("### ⚽ 득점 추이 (주차별 + 누적)")
+    
+    # 주차별 득점 계산
+    weekly_goals_data = []
+    cumulative_goals_data = []
+    
+    for team in teams_list:
+        cum_goals = 0
+        for w in all_weeks:
+            week_data = df_match[df_match['주차'] == w]
+            week_goals = 0
+            for _, row in week_data.iterrows():
+                goals = count_goals(row[team])
+                if goals is not None:
+                    week_goals += goals
+            
+            cum_goals += week_goals
+            weekly_goals_data.append({'Week': w, 'Team': team, 'Goals': week_goals})
+            cumulative_goals_data.append({'Week': w, 'Team': team, 'CumulativeGoals': cum_goals})
+    
+    df_weekly_goals = pd.DataFrame(weekly_goals_data)
+    df_cumulative_goals = pd.DataFrame(cumulative_goals_data)
+    
+    fig_goals = make_subplots(specs=[[{"secondary_y": True}]])
+    
+    # 막대 그래프 (주차별 득점)
+    for team in teams_list:
+        team_data = df_weekly_goals[df_weekly_goals['Team'] == team]
+        fig_goals.add_trace(
+            go.Bar(
+                x=team_data['Week'],
+                y=team_data['Goals'],
+                name=f'{team} (주차별)',
+                marker_color=team_colors[team],
+                opacity=0.6,
+                legendgroup=team
+            ),
+            secondary_y=False
+        )
+    
+    # 선 그래프 (누적 득점)
+    for team in teams_list:
+        team_data = df_cumulative_goals[df_cumulative_goals['Team'] == team]
+        fig_goals.add_trace(
+            go.Scatter(
+                x=team_data['Week'],
+                y=team_data['CumulativeGoals'],
+                name=f'{team} (누적)',
+                line=dict(color=team_colors[team], width=3),
+                mode='lines+markers',
+                legendgroup=team
+            ),
+            secondary_y=True
+        )
+    
+    fig_goals.update_xaxes(title_text="주차", tickmode='linear', dtick=1)
+    fig_goals.update_yaxes(title_text="주차별 득점", secondary_y=False)
+    fig_goals.update_yaxes(title_text="누적 득점", secondary_y=True)
+    
+    fig_goals.update_layout(
+        barmode='group',
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font_color='#212529',
+        hovermode='x unified',
+        height=400
+    )
+    
+    st.plotly_chart(fig_goals, use_container_width=True)
+    
+    # ========== 3. 실점 복합 그래프 ==========
+    st.markdown("### 🛡️ 실점 추이 (주차별 + 누적)")
+    
+    # 주차별 실점 계산
+    weekly_conceded_data = []
+    cumulative_conceded_data = []
+    
+    for team in teams_list:
+        cum_conceded = 0
+        for w in all_weeks:
+            week_data = df_match[df_match['주차'] == w]
+            week_conceded = 0
+            for _, row in week_data.iterrows():
+                my_goals = count_goals(row[team])
+                if my_goals is not None:
+                    for opp_team in teams_list:
+                        if opp_team != team:
+                            opp_goals = count_goals(row[opp_team])
+                            if opp_goals is not None:
+                                week_conceded += opp_goals
+            
+            cum_conceded += week_conceded
+            weekly_conceded_data.append({'Week': w, 'Team': team, 'Conceded': week_conceded})
+            cumulative_conceded_data.append({'Week': w, 'Team': team, 'CumulativeConceded': cum_conceded})
+    
+    df_weekly_conceded = pd.DataFrame(weekly_conceded_data)
+    df_cumulative_conceded = pd.DataFrame(cumulative_conceded_data)
+    
+    fig_conceded = make_subplots(specs=[[{"secondary_y": True}]])
+    
+    # 막대 그래프 (주차별 실점)
+    for team in teams_list:
+        team_data = df_weekly_conceded[df_weekly_conceded['Team'] == team]
+        fig_conceded.add_trace(
+            go.Bar(
+                x=team_data['Week'],
+                y=team_data['Conceded'],
+                name=f'{team} (주차별)',
+                marker_color=team_colors[team],
+                opacity=0.6,
+                legendgroup=team
+            ),
+            secondary_y=False
+        )
+    
+    # 선 그래프 (누적 실점)
+    for team in teams_list:
+        team_data = df_cumulative_conceded[df_cumulative_conceded['Team'] == team]
+        fig_conceded.add_trace(
+            go.Scatter(
+                x=team_data['Week'],
+                y=team_data['CumulativeConceded'],
+                name=f'{team} (누적)',
+                line=dict(color=team_colors[team], width=3),
+                mode='lines+markers',
+                legendgroup=team
+            ),
+            secondary_y=True
+        )
+    
+    fig_conceded.update_xaxes(title_text="주차", tickmode='linear', dtick=1)
+    fig_conceded.update_yaxes(title_text="주차별 실점", secondary_y=False)
+    fig_conceded.update_yaxes(title_text="누적 실점", secondary_y=True)
+    
+    fig_conceded.update_layout(
+        barmode='group',
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font_color='#212529',
+        hovermode='x unified',
+        height=400
+    )
+    
+    st.plotly_chart(fig_conceded, use_container_width=True)
+    
+    # ========== 4. 득실차 복합 그래프 ==========
+    st.markdown("### 📈 득실차 추이 (주차별 + 누적)")
+    
+    # 주차별 득실차 계산
+    weekly_gd_data = []
+    cumulative_gd_data = []
+    
+    for team in teams_list:
+        cum_gd = 0
+        for w in all_weeks:
+            # 해당 주차의 득점과 실점 가져오기
+            week_goals = df_weekly_goals[(df_weekly_goals['Week'] == w) & (df_weekly_goals['Team'] == team)]['Goals'].values[0]
+            week_conceded = df_weekly_conceded[(df_weekly_conceded['Week'] == w) & (df_weekly_conceded['Team'] == team)]['Conceded'].values[0]
+            week_gd = week_goals - week_conceded
+            
+            cum_gd += week_gd
+            weekly_gd_data.append({'Week': w, 'Team': team, 'GD': week_gd})
+            cumulative_gd_data.append({'Week': w, 'Team': team, 'CumulativeGD': cum_gd})
+    
+    df_weekly_gd = pd.DataFrame(weekly_gd_data)
+    df_cumulative_gd = pd.DataFrame(cumulative_gd_data)
+    
+    fig_gd = make_subplots(specs=[[{"secondary_y": True}]])
+    
+    # 막대 그래프 (주차별 득실차)
+    for team in teams_list:
+        team_data = df_weekly_gd[df_weekly_gd['Team'] == team]
+        fig_gd.add_trace(
+            go.Bar(
+                x=team_data['Week'],
+                y=team_data['GD'],
+                name=f'{team} (주차별)',
+                marker_color=team_colors[team],
+                opacity=0.6,
+                legendgroup=team
+            ),
+            secondary_y=False
+        )
+    
+    # 선 그래프 (누적 득실차)
+    for team in teams_list:
+        team_data = df_cumulative_gd[df_cumulative_gd['Team'] == team]
+        fig_gd.add_trace(
+            go.Scatter(
+                x=team_data['Week'],
+                y=team_data['CumulativeGD'],
+                name=f'{team} (누적)',
+                line=dict(color=team_colors[team], width=3),
+                mode='lines+markers',
+                legendgroup=team
+            ),
+            secondary_y=True
+        )
+    
+    fig_gd.update_xaxes(title_text="주차", tickmode='linear', dtick=1)
+    fig_gd.update_yaxes(title_text="주차별 득실차", secondary_y=False)
+    fig_gd.update_yaxes(title_text="누적 득실차", secondary_y=True)
+    
+    fig_gd.update_layout(
+        barmode='group',
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font_color='#212529',
+        hovermode='x unified',
+        height=400
+    )
+    
+    st.plotly_chart(fig_gd, use_container_width=True)
 
