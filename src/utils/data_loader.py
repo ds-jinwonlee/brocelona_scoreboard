@@ -4,13 +4,22 @@ import math
 
 def load_data():
     """TSV 파일을 읽어서 DataFrame으로 반환합니다."""
-
+    import os
+    
+    # 프로젝트 루트 디렉토리 찾기
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(os.path.dirname(current_dir))
+    
+    # 데이터 파일 경로
+    match_file = os.path.join(project_root, 'data', 'match_result_sample.tsv')
+    att_file = os.path.join(project_root, 'data', 'attendance_sample.tsv')
+    
     # 주차,라운드,레드,블루,옐로
     # on_bad_lines='skip'을 사용하여 오류가 있는 라인을 건너뛰거나, quoting을 조절합니다.
-    df_match = pd.read_csv('match_result_sample.tsv', sep='\t', on_bad_lines='warn')
+    df_match = pd.read_csv(match_file, sep='\t', on_bad_lines='warn')
     
     # 팀이름,선수이름,1주차,2주차,3주차
-    df_att = pd.read_csv('attendance_sample.tsv', sep='\t', on_bad_lines='warn')
+    df_att = pd.read_csv(att_file, sep='\t', on_bad_lines='warn')
     
     return df_match, df_att
 

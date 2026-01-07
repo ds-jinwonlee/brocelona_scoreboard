@@ -1,9 +1,11 @@
 
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from data_loader import load_data, process_match_results, process_attendance, count_goals
+from utils.data_loader import load_data, process_match_results, process_attendance, count_goals, get_scorers_list
+
 
 # 페이지 설정
 st.set_page_config(
