@@ -31,17 +31,18 @@ st.markdown("""
         color: #1a1a1a;
     }
     
-    /* 탭 스타일 */
+    /* 탭 스타일 - 모바일 최적화 */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 20px;
+        gap: 8px;
     }
     .stTabs [data-baseweb="tab"] {
         height: 50px;
-        white-space: pre-wrap;
+        white-space: nowrap;
         background-color: #e9ecef;
         border-radius: 4px;
         color: #495057;
-        padding: 10px 20px;
+        padding: 10px 12px;
+        font-size: 14px;
     }
     .stTabs [aria-selected="true"] {
         background-color: #0d6efd;
@@ -68,6 +69,17 @@ st.markdown("""
         background-color: #dee2e6 !important;
         color: #212529 !important;
     }
+    
+    /* Expander 스타일 수정 - 모바일 가독성 */
+    .streamlit-expanderHeader {
+        background-color: #f8f9fa !important;
+        color: #212529 !important;
+    }
+    
+    details summary {
+        background-color: #f8f9fa !important;
+        color: #212529 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -91,21 +103,26 @@ tab1, tab2, tab3 = st.tabs(["🏆 종합 순위", "🏃 개인 기록", "📈 �
 # 탭 1: 종합 순위
 # ==========================================
 with tab1:
-    st.subheader("Leaderboard")
+    st.subheader("종합 순위")
     
-    # 3팀 카드 표시
-    col1, col2, col3 = st.columns(3)
-    col1.metric("🥇 1st Place", f"{df_teams.iloc[0]['Team']} ({df_teams.iloc[0]['Points']} pts)", f"GD {df_teams.iloc[0]['GD']}")
-    col2.metric("🥈 2nd Place", f"{df_teams.iloc[1]['Team']} ({df_teams.iloc[1]['Points']} pts)", f"GD {df_teams.iloc[1]['GD']}")
-    col3.metric("🥉 3rd Place", f"{df_teams.iloc[2]['Team']} ({df_teams.iloc[2]['Points']} pts)", f"GD {df_teams.iloc[2]['GD']}")
-
-    st.markdown("---")
+    # 순위표 (3팀만 표시) - 한글 컬럼명
+    df_teams_display = df_teams.copy()
+    df_teams_display = df_teams_display.rename(columns={
+        'Team': '팀',
+        'Points': '승점',
+        'Played': '경기수',
+        'W': '승',
+        'D': '무',
+        'L': '패',
+        'GF': '득점',
+        'GA': '실점',
+        'GD': '득실차'
+    })
     
-    # 순위표 (3팀만 표시)
-    display_cols = ['Team', 'Points', 'Played', 'W', 'D', 'L', 'GF', 'GA', 'GD']
+    display_cols = ['팀', '승점', '경기수', '승', '무', '패', '득점', '실점', '득실차']
     
     st.dataframe(
-        df_teams[display_cols].head(3),
+        df_teams_display[display_cols].head(3),
         use_container_width=True,
         height=180
     )
@@ -439,7 +456,7 @@ with tab2:
     st.caption("공식: 득점 / 출석 횟수")
     df_eff_striker = df_players_all[df_players_all['AttendanceCount'] > 0].sort_values(by='GoalsPerAtt', ascending=False).head(10).reset_index(drop=True)
     df_eff_striker.index += 1
-    st.dataframe(df_eff_striker[['Player', 'GoalsPerAtt', 'Goals', 'AttendanceCount', 'Team']].style.format({'GoalsPerAtt': '{:.2f}'}), use_container_width=True)
+    st.dataframe(df_eff_striker[['Player', 'GoalsPerAtt', 'Goals', 'AttendanceCount', 'Team']].style.format({'GoalsPerAtt': '{:.2f}', 'Goals': '{:.0f}'}), use_container_width=True)
     
     st.markdown("---")
     
@@ -507,10 +524,10 @@ with tab3:
     
     fig_trend.update_layout(
         xaxis=dict(tickmode='linear', dtick=1),
-        yaxis=dict(showgrid=True, gridcolor='#333'),
+        yaxis=dict(showgrid=True, gridcolor='#ddd'),
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)',
-        font_color='white'
+        font_color='#212529'
     )
     
     st.plotly_chart(fig_trend, use_container_width=True)
