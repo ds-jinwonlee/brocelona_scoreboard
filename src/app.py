@@ -494,7 +494,7 @@ with tab2:
     st.subheader("📅 출석왕 (Top 10)")
     df_att_king = df_players_all.sort_values(by='AttendanceCount', ascending=False).head(10).reset_index(drop=True)
     df_att_king.index += 1
-    st.dataframe(df_att_king[['Player', 'Team', 'AttendanceCount']], use_container_width=True)
+    st.dataframe(df_att_king[['Player', 'Team', 'AttendanceCount']].style.format({'AttendanceCount': '{:.0f}'}), use_container_width=True)
     
     st.markdown("---")
     
@@ -502,7 +502,7 @@ with tab2:
     st.caption("공식: 득점 / 출석 횟수")
     df_eff_striker = df_players_all[df_players_all['AttendanceCount'] > 0].sort_values(by='GoalsPerAtt', ascending=False).head(10).reset_index(drop=True)
     df_eff_striker.index += 1
-    st.dataframe(df_eff_striker[['Player', 'GoalsPerAtt', 'Goals', 'AttendanceCount', 'Team']].style.format({'GoalsPerAtt': '{:.2f}', 'Goals': '{:.0f}'}), use_container_width=True)
+    st.dataframe(df_eff_striker[['Player', 'GoalsPerAtt', 'Goals', 'AttendanceCount', 'Team']].style.format({'GoalsPerAtt': '{:.2f}', 'Goals': '{:.0f}', 'AttendanceCount': '{:.0f}'}), use_container_width=True)
     
     st.markdown("---")
     
@@ -529,7 +529,7 @@ with tab2:
     df_lucky = df_players_all[df_players_all['AttendanceCount'] > 0].sort_values(by='PointsPerAtt', ascending=False).head(10).reset_index(drop=True)
     df_lucky.index += 1
     st.dataframe(
-        df_lucky[['Player', 'PointsPerAtt', 'TotalPointsContribution', 'AttendanceCount', 'Team']].rename(columns={'TotalPointsContribution': 'Points'}).style.format({'PointsPerAtt': '{:.2f}', 'Points': '{:.0f}'}),
+        df_lucky[['Player', 'PointsPerAtt', 'TotalPointsContribution', 'AttendanceCount', 'Team']].rename(columns={'TotalPointsContribution': 'Points'}).style.format({'PointsPerAtt': '{:.2f}', 'Points': '{:.0f}', 'AttendanceCount': '{:.0f}'}),
         use_container_width=True
     )
 
