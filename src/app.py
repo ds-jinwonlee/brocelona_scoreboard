@@ -1,10 +1,58 @@
 
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from utils.data_loader import load_data, process_match_results, process_attendance, count_goals, get_scorers_list
+
+
+# 헬퍼 함수: DataFrame을 중앙 정렬된 HTML 테이블로 변환
+def df_to_html_table(df, center_align=True, match_result=False):
+    """
+    DataFrame을 HTML 테이블로 변환
+    
+    Args:
+        df: pandas DataFrame
+        center_align: True면 모든 셀 중앙 정렬, False면 왼쪽 정렬
+        match_result: True면 경기 결과 테이블 (헤더만 중앙, 값은 왼쪽)
+    """
+    # 스타일 설정
+    if match_result:
+        # 경기 결과: 헤더는 중앙, 값은 왼쪽
+        cell_style = 'text-align: left; padding: 8px 12px;'
+        header_style = 'text-align: center; padding: 8px 12px; font-weight: 700; background-color: #dee2e6;'
+    elif center_align:
+        # 일반 테이블: 모두 중앙
+        cell_style = 'text-align: center; padding: 8px 12px;'
+        header_style = 'text-align: center; padding: 8px 12px; font-weight: 700; background-color: #dee2e6;'
+    else:
+        # 왼쪽 정렬
+        cell_style = 'text-align: left; padding: 8px 12px;'
+        header_style = 'text-align: left; padding: 8px 12px; font-weight: 700; background-color: #dee2e6;'
+    
+    # HTML 테이블 생성
+    html = '<table style="width: 100%; border-collapse: collapse; color: #212529;">'
+    
+    # 헤더
+    html += '<thead><tr>'
+    if df.index.name or not all(isinstance(i, int) for i in df.index):
+        html += f'<th style="{header_style}">{df.index.name if df.index.name else ""}</th>'
+    for col in df.columns:
+        html += f'<th style="{header_style}">{col}</th>'
+    html += '</tr></thead>'
+    
+    # 데이터
+    html += '<tbody>'
+    for idx, row in df.iterrows():
+        html += '<tr>'
+        if df.index.name or not all(isinstance(i, int) for i in df.index):
+            html += f'<td style="{header_style}">{idx}</td>'
+        for val in row:
+            html += f'<td style="{cell_style}">{val}</td>'
+        html += '</tr>'
+    html += '</tbody></table>'
+    
+    return html
 
 
 # 페이지 설정
@@ -81,20 +129,55 @@ st.markdown("""
         background-color: #ffffff !important;
     }
     
-    /* 테이블 내 텍스트 가독성 향상 */
+    /* 테이블 내 텍스트 가독성 향상 및 가운데 정렬 */
     table {
         color: #212529 !important;
         background-color: #ffffff !important;
+        width: auto !important;
     }
     
+    /* 테이블 헤더 - 굵게, 가운데 정렬 */
     th {
         background-color: #dee2e6 !important;
         color: #212529 !important;
+        font-weight: 700 !important;
+        text-align: center !important;
+        padding: 8px 12px !important;
+        white-space: nowrap !important;
     }
     
+    /* 테이블 데이터 셀 - 가운데 정렬 */
     td {
         background-color: #ffffff !important;
         color: #212529 !important;
+        text-align: center !important;
+        padding: 8px 12px !important;
+    }
+    
+    /* 인덱스 컬럼 스타일 */
+    .row_heading {
+        font-weight: 700 !important;
+        text-align: center !important;
+    }
+    
+    /* 컬럼 너비 자동 조정 */
+    table {
+        table-layout: auto !important;
+    }
+    
+    th, td {
+        width: auto !important;
+        max-width: fit-content !important;
+    }
+    
+    /* Expander 내부 테이블 - 경기 결과용 (값은 왼쪽 정렬) */
+    details table td {
+        text-align: left !important;
+    }
+    
+    details table th {
+        text-align: center !important;
+        font-weight: 700 !important;
     }
     
     /* Expander 스타일 수정 - 모바일 가독성 */
@@ -106,6 +189,7 @@ st.markdown("""
     details summary {
         background-color: #f8f9fa !important;
         color: #212529 !important;
+        font-weight: 700 !important;
     }
     
     details {
@@ -167,11 +251,9 @@ with tab1:
     
     display_cols = ['팀', '승점', '경기수', '승', '무', '패', '득점', '실점', '득실차']
     
-    st.dataframe(
-        df_teams_display[display_cols].head(3),
-        use_container_width=True,
-        height=180
-    )
+    
+    # HTML 테이블로 렌더링
+    st.markdown(df_to_html_table(df_teams_display[display_cols].head(3).reset_index(drop=True)), unsafe_allow_html=True)
     
     # 팀별 통합 승점 테이블
     st.subheader("Team Stats Comparison")
@@ -191,11 +273,9 @@ with tab1:
         '옐로': [total_points.get('옐로', 0)] + [weekly_points.loc[w, '옐로'] if w in weekly_points.index and '옐로' in weekly_points.columns else 0 for w in sorted(weekly_points.index, reverse=True)]
     })
     
-    st.dataframe(
-        points_table.style.format(precision=0),
-        use_container_width=True,
-        height=200
-    )
+    # HTML 테이블로 렌더링
+    points_table_display = points_table.set_index('비고')
+    st.markdown(df_to_html_table(points_table_display), unsafe_allow_html=True)
     
     st.markdown("### 주차별 및 누적 득점/실점")
     
@@ -327,30 +407,15 @@ with tab1:
     
     with col1:
         st.markdown("#### 🔴 레드")
-        st.dataframe(
-            df_red.style.format(precision=0, na_rep='-'),
-            use_container_width=True,
-            hide_index=True,
-            height=220
-        )
+        st.markdown(df_to_html_table(df_red.set_index('비고')), unsafe_allow_html=True)
     
     with col2:
         st.markdown("#### 🔵 블루")
-        st.dataframe(
-            df_blue.style.format(precision=0, na_rep='-'),
-            use_container_width=True,
-            hide_index=True,
-            height=220
-        )
+        st.markdown(df_to_html_table(df_blue.set_index('비고')), unsafe_allow_html=True)
     
     with col3:
         st.markdown("#### 🟡 옐로")
-        st.dataframe(
-            df_yellow.style.format(precision=0, na_rep='-'),
-            use_container_width=True,
-            hide_index=True,
-            height=220
-        )
+        st.markdown(df_to_html_table(df_yellow.set_index('비고')), unsafe_allow_html=True)
     
     # 경기 결과 원본 데이터
     st.markdown("---")
@@ -418,11 +483,8 @@ with tab1:
             
             formatted_df = pd.concat([formatted_df, pd.DataFrame([points_row])], ignore_index=True)
             
-            st.dataframe(
-                formatted_df,
-                use_container_width=True,
-                hide_index=True
-            )
+            # 경기 결과 테이블 - 헤더는 중앙, 값은 왼쪽 정렬
+            st.markdown(df_to_html_table(formatted_df.set_index('라운드'), match_result=True), unsafe_allow_html=True)
 
 # ==========================================
 # 탭 2: 개인 기록
@@ -439,11 +501,9 @@ with tab2:
     df_scorers_sorted = df_scorers.sort_values(by='Goals', ascending=False).reset_index(drop=True)
     df_scorers_sorted.index += 1
     
-    # Top 10 표시
-    st.dataframe(
-        df_scorers_sorted[['Player', 'Team', 'Goals']].head(10).style.bar(subset=['Goals'], color='#facc15'),
-        use_container_width=True
-    )
+    # Top 10 표시 - HTML 테이블로 변경
+    df_scorers_display = df_scorers_sorted[['Player', 'Team', 'Goals']].head(10)
+    st.markdown(df_to_html_table(df_scorers_display), unsafe_allow_html=True)
     
     st.markdown("---")
     
@@ -494,7 +554,10 @@ with tab2:
     st.subheader("📅 출석왕 (Top 10)")
     df_att_king = df_players_all.sort_values(by='AttendanceCount', ascending=False).head(10).reset_index(drop=True)
     df_att_king.index += 1
-    st.dataframe(df_att_king[['Player', 'Team', 'AttendanceCount']].style.format({'AttendanceCount': '{:.0f}'}), use_container_width=True)
+    # HTML 테이블로 변경
+    df_att_king_display = df_att_king[['Player', 'Team', 'AttendanceCount']].copy()
+    df_att_king_display['AttendanceCount'] = df_att_king_display['AttendanceCount'].astype(int)
+    st.markdown(df_to_html_table(df_att_king_display), unsafe_allow_html=True)
     
     st.markdown("---")
     
@@ -502,7 +565,12 @@ with tab2:
     st.caption("공식: 득점 / 출석 횟수")
     df_eff_striker = df_players_all[df_players_all['AttendanceCount'] > 0].sort_values(by='GoalsPerAtt', ascending=False).head(10).reset_index(drop=True)
     df_eff_striker.index += 1
-    st.dataframe(df_eff_striker[['Player', 'GoalsPerAtt', 'Goals', 'AttendanceCount', 'Team']].style.format({'GoalsPerAtt': '{:.2f}', 'Goals': '{:.0f}', 'AttendanceCount': '{:.0f}'}), use_container_width=True)
+    # HTML 테이블로 변경
+    df_eff_display = df_eff_striker[['Player', 'GoalsPerAtt', 'Goals', 'AttendanceCount', 'Team']].copy()
+    df_eff_display['GoalsPerAtt'] = df_eff_display['GoalsPerAtt'].apply(lambda x: f'{x:.2f}')
+    df_eff_display['Goals'] = df_eff_display['Goals'].astype(int)
+    df_eff_display['AttendanceCount'] = df_eff_display['AttendanceCount'].astype(int)
+    st.markdown(df_to_html_table(df_eff_display), unsafe_allow_html=True)
     
     st.markdown("---")
     
@@ -528,10 +596,12 @@ with tab2:
     
     df_lucky = df_players_all[df_players_all['AttendanceCount'] > 0].sort_values(by='PointsPerAtt', ascending=False).head(10).reset_index(drop=True)
     df_lucky.index += 1
-    st.dataframe(
-        df_lucky[['Player', 'PointsPerAtt', 'TotalPointsContribution', 'AttendanceCount', 'Team']].rename(columns={'TotalPointsContribution': 'Points'}).style.format({'PointsPerAtt': '{:.2f}', 'Points': '{:.0f}', 'AttendanceCount': '{:.0f}'}),
-        use_container_width=True
-    )
+    # HTML 테이블로 변경
+    df_lucky_display = df_lucky[['Player', 'PointsPerAtt', 'TotalPointsContribution', 'AttendanceCount', 'Team']].rename(columns={'TotalPointsContribution': 'Points'}).copy()
+    df_lucky_display['PointsPerAtt'] = df_lucky_display['PointsPerAtt'].apply(lambda x: f'{x:.2f}')
+    df_lucky_display['Points'] = df_lucky_display['Points'].astype(int)
+    df_lucky_display['AttendanceCount'] = df_lucky_display['AttendanceCount'].astype(int)
+    st.markdown(df_to_html_table(df_lucky_display), unsafe_allow_html=True)
 
 # ==========================================
 # 탭 3: 트렌드 분석
