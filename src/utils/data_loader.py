@@ -3,27 +3,27 @@ import os
 import streamlit as st
 
 def load_data_from_url():
-    """공개된 Google Sheets URL에서 데이터를 읽어옵니다. (시트 이름 지정 방식)"""
+    """공개된 Google Sheets URL에서 데이터를 읽어옵니다. (Raw CSV 방식)"""
     try:
         base_url = st.secrets["google_sheets"]["spreadsheet_url"]
-        # export 대신 gviz/tq를 사용해야 &sheet= 이름 파라미터가 정확히 작동합니다.
-        match_url = f"{base_url.split('/edit')[0]}/gviz/tq?tqx=out:csv&sheet=match_result"
-        att_url = f"{base_url.split('/edit')[0]}/gviz/tq?tqx=out:csv&sheet=attendance"
+        doc_id = base_url.split('/d/')[1].split('/')[0]
         
-        # dtype=str을 사용하여 숫자가 먼저 나와도 텍스트(선수 이름)가 유실되지 않게 함
-        df_match = pd.read_csv(match_url, dtype=str)
-        df_att = pd.read_csv(att_url, dtype=str)
+        # ⚠️ gviz API의 타입 추론 오류를 피하기 위해 Raw Export API 사용
+        # match_result (gid=1046780866), attendance (gid=1984754051)
+        match_url = f"https://docs.google.com/spreadsheets/d/{doc_id}/export?format=csv&gid=1046780866"
+        att_url = f"https://docs.google.com/spreadsheets/d/{doc_id}/export?format=csv&gid=1984754051"
         
-        # 결측값 채우기 및 문자열 공백 제거
-        df_match = df_match.fillna('').astype(str).apply(lambda x: x.str.strip())
-        df_att = df_att.fillna('').astype(str).apply(lambda x: x.str.strip())
+        # 모든 데이터를 문자열로 로드하여 데이터 유실 방지
+        df_match = pd.read_csv(match_url, dtype=str).fillna('')
+        df_att = pd.read_csv(att_url, dtype=str).fillna('')
         
-        # '주차' 컬럼이 있는지 확인 후 행 정제
-        if not df_match.empty:
-            # 컬럼명에 공백이 있을 수 있으니 스트립 처리
-            df_match.columns = [c.strip() for c in df_match.columns]
-            if '주차' in df_match.columns:
-                df_match = df_match[df_match['주차'] != ''].reset_index(drop=True)
+        # 컬럼명 공백 제거
+        df_match.columns = [c.strip() for c in df_match.columns]
+        df_att.columns = [c.strip() for c in df_att.columns]
+        
+        # '주차' 컬럼 기준 데이터 정제
+        if '주차' in df_match.columns:
+            df_match = df_match[df_match['주차'].str.strip() != ''].reset_index(drop=True)
             
         return df_match, df_att
     except Exception as e:
@@ -65,10 +65,23 @@ def load_data():
         return load_data_from_local()
 
 def count_goals(scorer_str):
-    """득점 수 계산"""
+    """
+    득점 수 계산
+    - '0' : 경기는 했으나 득점 없음 (0 반환)
+    - 빈 값 ('') : 경기 참여 안 함 (None 반환)
+    - 그 외 : 득점자 수 카운트
+    """
     if pd.isna(scorer_str): return None
     s_str = str(scorer_str).strip()
-    if s_str in ['0', '0.0', '']: return 0
+    
+    # ⚠️ 빈 값인 경우 미참여로 간주
+    if s_str == '':
+        return None
+        
+    # '0'인 경우 참여했으나 무득점으로 간주
+    if s_str in ['0', '0.0']:
+        return 0
+        
     scorers = [s.strip() for s in s_str.split(',')]
     return len([s for s in scorers if s])
 
