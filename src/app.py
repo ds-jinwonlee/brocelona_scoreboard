@@ -446,65 +446,101 @@ with tab1:
 # 탭 2: 개인 기록
 # ==========================================
 with tab2:
-    # 1. 득점 랭킹 (Golden Boot)
-    st.subheader("👟 Golden Boot (득점왕)")
-    st.caption("리그 최고의 득점 기계! 가장 많은 골을 터뜨린 주인공입니다.")
+    # 랭킹 표시 공통 헬퍼 함수
+    def display_personal_rankings(df, sort_col, title, caption, rename_map, display_cols, is_ascending=False, teams=all_teams_raw):
+        st.subheader(title)
+        st.caption(caption)
+        
+        # 1. 전체 TOP 10
+        df_overall = df.sort_values(by=sort_col, ascending=is_ascending).head(10).reset_index(drop=True)
+        df_overall.index += 1
+        df_overall_disp = df_overall.copy()
+        df_overall_disp['Team'] = df_overall_disp['Team'].map(display_team_map)
+        st.markdown(f"**전체 순위**")
+        st.markdown(df_to_html_table(df_overall_disp[display_cols].rename(columns=rename_map)), unsafe_allow_html=True)
+        
+        # 2. 팀별 TOP 5
+        st.markdown(f"**팀별 순위 (Top 5)**")
+        t_cols = st.columns(len(teams))
+        for i, t_raw in enumerate(teams):
+            with t_cols[i]:
+                st.markdown(f"**{display_team_map.get(t_raw)}**")
+                t_df = df[df['Team'] == t_raw].sort_values(by=sort_col, ascending=is_ascending).head(5).reset_index(drop=True)
+                t_df.index += 1
+                # 팀별 표에는 팀 이름을 뺌
+                t_disp_cols = [c for c in display_cols if c != 'Team']
+                t_rename_map = {k: v for k, v in rename_map.items() if k != 'Team'}
+                st.markdown(df_to_html_table(t_df[t_disp_cols].rename(columns=t_rename_map)), unsafe_allow_html=True)
+        st.markdown("---")
+
+    # 1. Golden Boot
+    display_personal_rankings(
+        df_players_all, 
+        sort_col='득점', 
+        title="👟 Golden Boot (득점왕)", 
+        caption="리그 최고의 득점 기계! 가장 많은 골을 터뜨린 주인공입니다.",
+        rename_map={'Player': '선수', 'Team': '팀', '득점': '득점'},
+        display_cols=['Player', '팀', '득점']
+    )
     
-    df_scorers_display = df_players_all.sort_values(by='득점', ascending=False).head(10).copy()
-    df_scorers_display['Team'] = df_scorers_display['Team'].map(display_team_map)
-    df_scorers_display = df_scorers_display.rename(columns={'Player': '선수', 'Team': '팀'})
-    st.markdown(df_to_html_table(df_scorers_display[['선수', '팀', '득점']].reset_index(drop=True)), unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    # 2. 아이언 맨 (출석왕)
-    st.subheader("🦸 아이언 맨 (Top 10)")
-    st.caption("리그의 기둥! 성실함의 상징, 철의 체력으로 모든 경기를 함께합니다.")
-    df_att_king = df_players_all.sort_values(by='출석횟수', ascending=False).head(10).copy()
-    df_att_king['Team'] = df_att_king['Team'].map(display_team_map)
-    st.markdown(df_to_html_table(df_att_king[['Player', 'Team', '출석횟수']].rename(columns={'Player': '선수', 'Team': '팀'}).reset_index(drop=True)), unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
+    # 2. 아이언 맨
+    display_personal_rankings(
+        df_players_all, 
+        sort_col='출석횟수', 
+        title="🦸 아이언 맨 (출석왕)", 
+        caption="리그의 기둥! 성실함의 상징, 철의 체력으로 모든 경기를 함께합니다.",
+        rename_map={'Player': '선수', 'Team': '팀', '출석횟수': '출석횟수'},
+        display_cols=['Player', 'Team', '출석횟수']
+    )
+
     # 3. 가성비 스트라이커
-    st.subheader("⚡ 가성비 스트라이커 (Top 10)")
-    st.caption("최강의 효율! 적은 기회도 놓치지 않고 득점으로 연결하는 해결사입니다. (득점/출석횟수)")
-    df_eff = df_players_all[df_players_all['출석횟수'] > 0].sort_values(by=['경기당 득점', '득점'], ascending=[False, False]).head(10).copy()
-    df_eff['Team'] = df_eff['Team'].map(display_team_map)
-    df_eff['경기당 득점'] = df_eff['경기당 득점'].apply(lambda x: f'{x:.2f}')
-    st.markdown(df_to_html_table(df_eff[['Player', '경기당 득점', '득점', '출석횟수', 'Team']].rename(columns={'Player': '선수', 'Team': '팀', '경기당 득점': '출석 당 득점'}).reset_index(drop=True)), unsafe_allow_html=True)
-    
-    st.markdown("---")
+    df_eff_base = df_players_all[df_players_all['출석횟수'] > 0].copy()
+    df_eff_base['출석 당 득점_disp'] = df_eff_base['경기당 득점'].apply(lambda x: f'{x:.2f}')
+    display_personal_rankings(
+        df_eff_base, 
+        sort_col='경기당 득점', 
+        title="⚡ 가성비 스트라이커 (Top 10)", 
+        caption="최강의 효율! 적은 기회도 놓치지 않고 득점으로 연결하는 해결사입니다. (득점/출석횟수)",
+        rename_map={'Player': '선수', 'Team': '팀', '출석 당 득점_disp': '출석 당 득점', '득점': '개인득점'},
+        display_cols=['Player', '출석 당 득점_disp', '득점', 'Team']
+    )
     
     # 4. 승리 요정
-    st.subheader("🧚 승리 요정 (Top 10)")
-    st.caption("승리의 부적! 내가 경기에 나서는 것만으로도 팀의 승리 확률이 올라갑니다. (나올 때 팀 평균 승점)")
-    df_lucky = df_players_all[df_players_all['출석횟수'] > 0].sort_values(by=['출전_평균승점', '팀승점합계'], ascending=[False, False]).head(10).copy()
-    df_lucky['Team'] = df_lucky['Team'].map(display_team_map)
-    df_lucky['출전_평균승점'] = df_lucky['출전_평균승점'].apply(lambda x: f'{x:.2f}')
-    df_lucky['팀승점합계'] = df_lucky['팀승점합계'].fillna(0).astype(int)
-    st.markdown(df_to_html_table(df_lucky[['Player', '출전_평균승점', '팀승점합계', '출석횟수', 'Team']].rename(columns={'Player': '선수', 'Team': '팀', '출전_평균승점': '출석 당 팀승점', '팀승점합계': '누적 팀승점'}).reset_index(drop=True)), unsafe_allow_html=True)
-    
-    st.markdown("---")
+    df_lucky_base = df_players_all[df_players_all['출석횟수'] > 0].copy()
+    df_lucky_base['출석 당 팀승점_disp'] = df_lucky_base['출전_평균승점'].apply(lambda x: f'{x:.2f}')
+    display_personal_rankings(
+        df_lucky_base, 
+        sort_col='출전_평균승점', 
+        title="🧚 승리 요정 (Top 10)", 
+        caption="승리의 부적! 내가 경기에 나서는 것만으로도 팀의 승리 확률이 올라갑니다. (나올 때 팀 평균 승점)",
+        rename_map={'Player': '선수', 'Team': '팀', '출석 당 팀승점_disp': '출석 당 팀승점', '팀승점합계': '누적 팀승점'},
+        display_cols=['Player', '출석 당 팀승점_disp', '팀승점합계', 'Team']
+    )
     
     # 5. 득점 폭격기
-    st.subheader("🚀 득점 폭격기 (Top 10)")
-    st.caption("공격의 불씨! 내가 그라운드에 있으면 팀 전체의 화력이 불을 뿜습니다. (나올 때 팀 평균 득점)")
-    df_gf = df_players_all[df_players_all['출석횟수'] > 0].sort_values(by=['출전_평균득점', '팀득점합계'], ascending=[False, False]).head(10).copy()
-    df_gf['Team'] = df_gf['Team'].map(display_team_map)
-    df_gf['출전_평균득점'] = df_gf['출전_평균득점'].apply(lambda x: f'{x:.2f}')
-    st.markdown(df_to_html_table(df_gf[['Player', '출전_평균득점', '팀득점합계', '출석횟수', 'Team']].rename(columns={'Player': '선수', 'Team': '팀', '출전_평균득점': '출석 당 팀득점', '팀득점합계': '누적 팀 득점'}).reset_index(drop=True)), unsafe_allow_html=True)
-    
-    st.markdown("---")
+    df_gf_base = df_players_all[df_players_all['출석횟수'] > 0].copy()
+    df_gf_base['출석 당 팀득점_disp'] = df_gf_base['출전_평균득점'].apply(lambda x: f'{x:.2f}')
+    display_personal_rankings(
+        df_gf_base, 
+        sort_col='출전_평균득점', 
+        title="🚀 득점 폭격기 (Top 10)", 
+        caption="공격의 불씨! 내가 그라운드에 있으면 팀 전체의 화력이 불을 뿜습니다. (나올 때 팀 평균 득점)",
+        rename_map={'Player': '선수', 'Team': '팀', '출석 당 팀득점_disp': '출석 당 팀득점', '팀득점합계': '누적 팀 득점'},
+        display_cols=['Player', '출석 당 팀득점_disp', '팀득점합계', 'Team']
+    )
     
     # 6. 통곡의 벽
-    st.subheader("🧱 통곡의 벽 (Bottom 10)")
-    st.caption("철통 보안! 상대 공격수들을 절망에 빠뜨리는 든든한 수비의 핵심입니다. (나올 때 팀 평균 실점)")
-    df_shield = df_players_all[df_players_all['출석횟수'] > 0].sort_values(by=['출전_평균실점', '출석횟수'], ascending=[True, False]).head(10).copy()
-    df_shield['Team'] = df_shield['Team'].map(display_team_map)
-    df_shield['출전_평균실점'] = df_shield['출전_평균실점'].apply(lambda x: f'{x:.2f}')
-    df_shield['팀실점합계'] = df_shield['팀실점합계'].fillna(0).astype(int)
-    st.markdown(df_to_html_table(df_shield[['Player', '출전_평균실점', '팀실점합계', '출석횟수', 'Team']].rename(columns={'Player': '선수', 'Team': '팀', '출전_평균실점': '출석 당 팀실점', '팀실점합계': '누적 팀실점'}).reset_index(drop=True)), unsafe_allow_html=True)
+    df_shield_base = df_players_all[df_players_all['출석횟수'] > 0].copy()
+    df_shield_base['출석 당 팀실점_disp'] = df_shield_base['출전_평균실점'].apply(lambda x: f'{x:.2f}')
+    display_personal_rankings(
+        df_shield_base, 
+        sort_col='출전_평균실점', 
+        title="🧱 통곡의 벽 (Bottom 10)", 
+        caption="철통 보안! 상대 공격수들을 절망에 빠뜨리는 든든한 수비의 핵심입니다. (나올 때 팀 평균 실점)",
+        rename_map={'Player': '선수', 'Team': '팀', '출석 당 팀실점_disp': '출석 당 팀실점', '팀실점합계': '누적 팀실점'},
+        display_cols=['Player', '출석 당 팀실점_disp', '팀실점합계', 'Team'],
+        is_ascending=True # 실점은 낮은게 좋은 순위
+    )
 
 # ==========================================
 # 탭 3: 트렌드 분석
