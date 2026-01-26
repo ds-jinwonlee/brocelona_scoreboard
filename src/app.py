@@ -480,7 +480,7 @@ with tab2:
         title="👟 Golden Boot (득점왕)", 
         caption="리그 최고의 득점 기계! 가장 많은 골을 터뜨린 주인공입니다.",
         rename_map={'Player': '선수', 'Team': '팀', '득점': '득점'},
-        display_cols=['Player', '팀', '득점']
+        display_cols=['Player', 'Team', '득점']
     )
     
     # 2. 아이언 맨
