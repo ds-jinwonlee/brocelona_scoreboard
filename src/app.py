@@ -348,7 +348,7 @@ metrics_df.columns = [
 df_players_all = pd.concat([df_players_base, metrics_df], axis=1)
 df_players_all['경기당 득점'] = (df_players_all['득점'] / df_players_all['출석횟수'].replace(0, 1)).fillna(0)
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["🏆 종합 순위", "🏃 개인 기록", "📈 트렌드 분석", "📊 선수 상세 데이터", "🌟 임팩트 분석"])
+tab1, tab2, tab5, tab3, tab4 = st.tabs(["🏆 종합 순위", "🏃 개인 기록", "🌟 임팩트 분석", "📈 트렌드 분석", "📊 선수 상세 데이터"])
 
 # ==========================================
 # 탭 1: 종합 순위
@@ -861,8 +861,9 @@ with tab5:
         st.warning("아직 분석을 위한 충분한 데이터(출전 및 결장 기록)가 쌓이지 않았습니다.")
     else:
         # 공통 스타일 함수
-        def display_impact_rankings(df, target_col, title, is_ascending=False, value_suffix=""):
+        def display_impact_rankings(df, target_col, title, caption, is_ascending=False, value_suffix=""):
             st.markdown(f"### {title}")
+            st.caption(caption)
             
             # 1. 전체 랭킹 조회
             top_n = 10
@@ -907,10 +908,10 @@ with tab5:
             st.markdown("---")
 
         # 1. 승점 임팩트
-        display_impact_rankings(impact_data, '임팩트_승점', "🏆 승점 임팩트 (승리 유전자)")
+        display_impact_rankings(impact_data, '임팩트_승점', "🏆 승점 임팩트 (승리 유전자)", "진정한 승리 전문가! 내가 경기에 나서는 것만으로도 팀의 승점 기대치가 이만큼 상승합니다.")
         
         # 2. 득점 임팩트
-        display_impact_rankings(impact_data, '임팩트_득점', "⚽ 득점 임팩트 (공격의 핵)")
+        display_impact_rankings(impact_data, '임팩트_득점', "⚽ 득점 임팩트 (공격의 핵)", "팀 화력의 기폭제! 내가 그라운드에 있을 때 우리 팀은 더 많은 골을 터뜨리게 됩니다.")
         
         # 3. 실점 임팩트 (Bottom 10/5)
-        display_impact_rankings(impact_data, '임팩트_실점', "🛡️ 실점 임팩트 (통곡의 벽)", is_ascending=True)
+        display_impact_rankings(impact_data, '임팩트_실점', "🛡️ 실점 임팩트 (통곡의 벽)", "골문 최후의 보루! 내가 수비 중심을 잡으면 상대 팀의 득점 확률이 눈에 띄게 줄어듭니다.", is_ascending=True)
