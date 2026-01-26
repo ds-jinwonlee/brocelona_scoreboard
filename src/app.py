@@ -937,5 +937,5 @@ with tab4:
             df_team_players[col] = df_team_players[col].astype(int)
             
         display_cols = ['선수이름', '🦸 아이언맨(출석)', '🎯 개인 득점', '⚡ 가성비(G/A)', '🧚 승리요정(P/A)', '🚀 폭격기(TG/A)', '🧱 통곡의벽(TA/A)', '팀 승점 합계', '팀 실점 합계']
-        st.markdown(df_to_html_table(df_team_players[display_cols].sort_values(by='출석횟수', ascending=False).reset_index(drop=True)), unsafe_allow_html=True)
+        st.markdown(df_to_html_table(df_team_players[display_cols].sort_values(by='🦸 아이언맨(출석)', ascending=False).reset_index(drop=True)), unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
