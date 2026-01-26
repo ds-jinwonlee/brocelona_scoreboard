@@ -576,6 +576,77 @@ with tab2:
     df_lucky_display['TotalPoints'] = df_lucky_display['TotalPoints'].astype(int)
     df_lucky_display['AttendanceCount'] = df_lucky_display['AttendanceCount'].astype(int)
     st.markdown(df_to_html_table(df_lucky_display), unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # --- 새로운 지표 1: ⚽ 득점 요정 (Goal Fairy) ---
+    st.subheader("⚽ 득점 요정 (Top 10)")
+    st.caption("공식: (내가 출전한 주차에 우리 팀이 넣은 총 득점 합계) / 출전 횟수. 내가 나오면 우리 팀 화력이 얼마나 폭발하는지!")
+    
+    # 주차별 팀 총 득점 계산
+    team_goals_by_week = df_match.groupby(['주차', '팀명' if '팀명' in df_match.columns else 'Team']).sum(numeric_only=True) # This is tricky due to raw names
+    # data_loader에서 처리한 weekly_stats 활용 제안
+    df_goals_only = df_weekly[df_weekly['지표'] == '득점']
+    
+    def calculate_team_goal_contribution(player_name):
+        player_att_rows = df_att_processed[ (df_att_processed['선수이름'] == player_name) & (df_att_processed['IsAttended'] == 1) ]
+        if player_att_rows.empty: return 0, 0
+        my_team = player_team_map.get(player_name)
+        if not my_team: return 0, 0
+        
+        total_team_goals = 0
+        attended_weeks = player_att_rows['WeekNum'].unique()
+        for w in attended_weeks:
+            g = df_goals_only[ (df_goals_only['주차'] == int(w)) & (df_goals_only['팀'] == my_team) ]['값'].sum()
+            total_team_goals += g
+        return total_team_goals / len(attended_weeks), total_team_goals
+
+    goal_fairy_data = df_players_all['Player'].apply(calculate_team_goal_contribution)
+    df_players_all['TeamGoalsPerAtt'] = goal_fairy_data.apply(lambda x: x[0])
+    df_players_all['TotalTeamGoals'] = goal_fairy_data.apply(lambda x: x[1])
+    
+    df_goal_fairy = df_players_all[df_players_all['AttendanceCount'] > 0].sort_values(by=['TeamGoalsPerAtt', 'TotalTeamGoals'], ascending=[False, False]).head(10).reset_index(drop=True)
+    df_goal_fairy.index += 1
+    
+    df_gf_display = df_goal_fairy[['Player', 'TeamGoalsPerAtt', 'TotalTeamGoals', 'AttendanceCount', 'Team']].copy()
+    df_gf_display['Team'] = df_gf_display['Team'].map(display_team_map)
+    df_gf_display['TeamGoalsPerAtt'] = df_gf_display['TeamGoalsPerAtt'].apply(lambda x: f'{x:.2f}')
+    df_gf_display['TotalTeamGoals'] = df_gf_display['TotalTeamGoals'].astype(int)
+    st.markdown(df_to_html_table(df_gf_display), unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # --- 새로운 지표 2: 🌟 승리 보증수표 (Victory Guarantee) ---
+    st.subheader("🌟 승리 보증수표 (Top 10)")
+    st.caption("공식: (내가 출전한 주차에 우리 팀이 승리한 횟수) / 출전 횟수. 내가 나오면 우리 팀은 반드시 승리한다!")
+    
+    def calculate_win_rate(player_name):
+        player_att_rows = df_att_processed[ (df_att_processed['선수이름'] == player_name) & (df_att_processed['IsAttended'] == 1) ]
+        if player_att_rows.empty: return 0, 0
+        my_team = player_team_map.get(player_name)
+        if not my_team: return 0, 0
+        
+        wins = 0
+        attended_weeks = player_att_rows['WeekNum'].unique()
+        for w in attended_weeks:
+            # 승점 3점인 경우 승리
+            p = team_points_by_week[ (team_points_by_week['Week'] == int(w)) & (team_points_by_week['Team'] == my_team) ]['PointsGained'].sum()
+            if p >= 3: wins += 1
+        return (wins / len(attended_weeks)) * 100, wins
+
+    win_rate_data = df_players_all['Player'].apply(calculate_win_rate)
+    df_players_all['WinRate'] = win_rate_data.apply(lambda x: x[0])
+    df_players_all['WinCount'] = win_rate_data.apply(lambda x: x[1])
+    
+    df_victory = df_players_all[df_players_all['AttendanceCount'] > 0].sort_values(by=['WinRate', 'WinCount'], ascending=[False, False]).head(10).reset_index(drop=True)
+    df_victory.index += 1
+    
+    df_v_display = df_victory[['Player', 'WinRate', 'WinCount', 'AttendanceCount', 'Team']].copy()
+    df_v_display['Team'] = df_v_display['Team'].map(display_team_map)
+    df_v_display['WinRate'] = df_v_display['WinRate'].apply(lambda x: f'{x:.1f}%')
+    df_v_display['WinCount'] = df_v_display['WinCount'].astype(int)
+    df_v_display = df_v_display.rename(columns={'WinRate': '승률(%)', 'WinCount': '승리 횟수'})
+    st.markdown(df_to_html_table(df_v_display), unsafe_allow_html=True)
 
 # ==========================================
 # 탭 3: 트렌드 분석
