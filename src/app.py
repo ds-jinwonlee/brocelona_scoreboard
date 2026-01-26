@@ -449,7 +449,7 @@ with tab2:
     df_eff = df_players_all[df_players_all['출석횟수'] > 0].sort_values(by=['경기당 득점', '득점'], ascending=[False, False]).head(10).copy()
     df_eff['Team'] = df_eff['Team'].map(display_team_map)
     df_eff['경기당 득점'] = df_eff['경기당 득점'].apply(lambda x: f'{x:.2f}')
-    st.markdown(df_to_html_table(df_eff[['Player', '경기당 득점', '득점', '출석횟수', 'Team']].rename(columns={'Player': '선수', 'Team': '팀', '경기당 득점': '가성비(경기당 득점)'}).reset_index(drop=True)), unsafe_allow_html=True)
+    st.markdown(df_to_html_table(df_eff[['Player', '경기당 득점', '득점', '출석횟수', 'Team']].rename(columns={'Player': '선수', 'Team': '팀', '경기당 득점': '출석 당 득점'}).reset_index(drop=True)), unsafe_allow_html=True)
     
     st.markdown("---")
     
@@ -460,7 +460,7 @@ with tab2:
     df_lucky['Team'] = df_lucky['Team'].map(display_team_map)
     df_lucky['경기당 승점'] = df_lucky['경기당 승점'].apply(lambda x: f'{x:.2f}')
     df_lucky['승점'] = df_lucky['승점'].astype(int)
-    st.markdown(df_to_html_table(df_lucky[['Player', '경기당 승점', '승점', '출석횟수', 'Team']].rename(columns={'Player': '선수', 'Team': '팀', '경기당 승점': '기여 승점(평균)'}).reset_index(drop=True)), unsafe_allow_html=True)
+    st.markdown(df_to_html_table(df_lucky[['Player', '경기당 승점', '승점', '출석횟수', 'Team']].rename(columns={'Player': '선수', 'Team': '팀', '경기당 승점': '출석 당 팀승점'}).reset_index(drop=True)), unsafe_allow_html=True)
     
     st.markdown("---")
     
@@ -470,7 +470,7 @@ with tab2:
     df_gf = df_players_all[df_players_all['출석횟수'] > 0].sort_values(by=['경기당 팀 득점', '팀득점합계'], ascending=[False, False]).head(10).copy()
     df_gf['Team'] = df_gf['Team'].map(display_team_map)
     df_gf['경기당 팀 득점'] = df_gf['경기당 팀 득점'].apply(lambda x: f'{x:.2f}')
-    st.markdown(df_to_html_table(df_gf[['Player', '경기당 팀 득점', '팀득점합계', '출석횟수', 'Team']].rename(columns={'Player': '선수', 'Team': '팀', '경기당 팀 득점': '팀 평균 득점', '팀득점합계': '누적 팀 득점'}).reset_index(drop=True)), unsafe_allow_html=True)
+    st.markdown(df_to_html_table(df_gf[['Player', '경기당 팀 득점', '팀득점합계', '출석횟수', 'Team']].rename(columns={'Player': '선수', 'Team': '팀', '경기당 팀 득점': '출석 당 팀득점', '팀득점합계': '누적 팀 득점'}).reset_index(drop=True)), unsafe_allow_html=True)
     
     st.markdown("---")
     
@@ -480,7 +480,7 @@ with tab2:
     df_shield = df_players_all[df_players_all['출석횟수'] > 0].sort_values(by=['경기당 평균 실점', '출석횟수'], ascending=[True, False]).head(10).copy()
     df_shield['Team'] = df_shield['Team'].map(display_team_map)
     df_shield['경기당 평균 실점'] = df_shield['경기당 평균 실점'].apply(lambda x: f'{x:.2f}')
-    st.markdown(df_to_html_table(df_shield[['Player', '경기당 평균 실점', '실점', '출석횟수', 'Team']].rename(columns={'Player': '선수', 'Team': '팀', '경기당 평균 실점': '팀 평균 실점'}).reset_index(drop=True)), unsafe_allow_html=True)
+    st.markdown(df_to_html_table(df_shield[['Player', '경기당 평균 실점', '실점', '출석횟수', 'Team']].rename(columns={'Player': '선수', 'Team': '팀', '경기당 평균 실점': '출석 당 팀실점'}).reset_index(drop=True)), unsafe_allow_html=True)
 
 # ==========================================
 # 탭 3: 트렌드 분석
@@ -804,16 +804,16 @@ with tab4:
             'Player': '선수이름',
             '출석횟수': '🦸 아이언맨(출석)',
             '득점': '🎯 개인 득점',
-            '경기당 득점': '⚡ 가성비(G/A)',
-            '경기당 승점': '🧚 승리요정(P/A)',
-            '경기당 팀 득점': '🚀 폭격기(TG/A)',
-            '경기당 평균 실점': '🧱 통곡의벽(TA/A)',
+            '경기당 득점': '⚡ 출석 당 득점',
+            '경기당 승점': '🧚 출석 당 팀승점',
+            '경기당 팀 득점': '🚀 출석 당 팀득점',
+            '경기당 평균 실점': '🧱 출석 당 팀실점',
             '승점': '팀 승점 합계',
             '실점': '팀 실점 합계'
         })
         
         # 숫자 형식 정리
-        cols_to_format = ['⚡ 가성비(G/A)', '🧚 승리요정(P/A)', '🚀 폭격기(TG/A)', '🧱 통곡의벽(TA/A)']
+        cols_to_format = ['⚡ 출석 당 득점', '🧚 출석 당 팀승점', '🚀 출석 당 팀득점', '🧱 출석 당 팀실점']
         for col in cols_to_format:
             df_team_players[col] = df_team_players[col].apply(lambda x: f'{x:.2f}')
             
@@ -821,6 +821,6 @@ with tab4:
         for col in int_cols:
             df_team_players[col] = df_team_players[col].astype(int)
             
-        display_cols = ['선수이름', '🦸 아이언맨(출석)', '🎯 개인 득점', '⚡ 가성비(G/A)', '🧚 승리요정(P/A)', '🚀 폭격기(TG/A)', '🧱 통곡의벽(TA/A)', '팀 승점 합계', '팀 실점 합계']
+        display_cols = ['선수이름', '🦸 아이언맨(출석)', '🎯 개인 득점', '⚡ 출석 당 득점', '🧚 출석 당 팀승점', '🚀 출석 당 팀득점', '🧱 출석 당 팀실점', '팀 승점 합계', '팀 실점 합계']
         st.markdown(df_to_html_table(df_team_players[display_cols].sort_values(by='🦸 아이언맨(출석)', ascending=False).reset_index(drop=True)), unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
