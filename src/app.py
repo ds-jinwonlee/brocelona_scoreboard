@@ -616,37 +616,39 @@ with tab2:
     
     st.markdown("---")
     
-    # --- 새로운 지표 2: 🌟 승리 보증수표 (Victory Guarantee) ---
-    st.subheader("🌟 승리 보증수표 (Top 10)")
-    st.caption("공식: (내가 출전한 주차에 우리 팀이 승리한 횟수) / 출전 횟수. 내가 나오면 우리 팀은 반드시 승리한다!")
+    # --- 새로운 지표 2: 🛡️ 철벽 방어막 (Iron Shield) ---
+    st.subheader("🛡️ 철벽 방어막 (Top 10)")
+    st.caption("공식: (내가 출전한 주차에 우리 팀이 허용한 총 실점 합계) / 출전 횟수. 내가 나오면 우리 팀 수비가 얼마나 단단해지는지! (수치가 낮을수록 순위가 높습니다)")
     
-    def calculate_win_rate(player_name):
+    df_conceded_only = df_weekly[df_weekly['지표'] == '실점']
+    
+    def calculate_defense_contribution(player_name):
         player_att_rows = df_att_processed[ (df_att_processed['선수이름'] == player_name) & (df_att_processed['IsAttended'] == 1) ]
-        if player_att_rows.empty: return 0, 0
+        if player_att_rows.empty: return 999, 0  # 미참여자는 순위권 제외를 위해 높은 값 부여
         my_team = player_team_map.get(player_name)
-        if not my_team: return 0, 0
+        if not my_team: return 999, 0
         
-        wins = 0
+        total_team_conceded = 0
         attended_weeks = player_att_rows['WeekNum'].unique()
         for w in attended_weeks:
-            # 승점 3점인 경우 승리
-            p = team_points_by_week[ (team_points_by_week['Week'] == int(w)) & (team_points_by_week['Team'] == my_team) ]['PointsGained'].sum()
-            if p >= 3: wins += 1
-        return (wins / len(attended_weeks)) * 100, wins
+            c = df_conceded_only[ (df_conceded_only['주차'] == int(w)) & (df_conceded_only['팀'] == my_team) ]['값'].sum()
+            total_team_conceded += c
+        return total_team_conceded / len(attended_weeks), total_team_conceded
 
-    win_rate_data = df_players_all['Player'].apply(calculate_win_rate)
-    df_players_all['WinRate'] = win_rate_data.apply(lambda x: x[0])
-    df_players_all['WinCount'] = win_rate_data.apply(lambda x: x[1])
+    defense_data = df_players_all['Player'].apply(calculate_defense_contribution)
+    df_players_all['AvgTeamConceded'] = defense_data.apply(lambda x: x[0])
+    df_players_all['TotalTeamConceded'] = defense_data.apply(lambda x: x[1])
     
-    df_victory = df_players_all[df_players_all['AttendanceCount'] > 0].sort_values(by=['WinRate', 'WinCount'], ascending=[False, False]).head(10).reset_index(drop=True)
-    df_victory.index += 1
+    # 실점이 낮은 순서대로 정렬 (ascending=True)
+    df_shield = df_players_all[df_players_all['AttendanceCount'] > 0].sort_values(by=['AvgTeamConceded', 'AttendanceCount'], ascending=[True, False]).head(10).reset_index(drop=True)
+    df_shield.index += 1
     
-    df_v_display = df_victory[['Player', 'WinRate', 'WinCount', 'AttendanceCount', 'Team']].copy()
-    df_v_display['Team'] = df_v_display['Team'].map(display_team_map)
-    df_v_display['WinRate'] = df_v_display['WinRate'].apply(lambda x: f'{x:.1f}%')
-    df_v_display['WinCount'] = df_v_display['WinCount'].astype(int)
-    df_v_display = df_v_display.rename(columns={'WinRate': '승률(%)', 'WinCount': '승리 횟수'})
-    st.markdown(df_to_html_table(df_v_display), unsafe_allow_html=True)
+    df_shield_display = df_shield[['Player', 'AvgTeamConceded', 'TotalTeamConceded', 'AttendanceCount', 'Team']].copy()
+    df_shield_display['Team'] = df_shield_display['Team'].map(display_team_map)
+    df_shield_display['AvgTeamConceded'] = df_shield_display['AvgTeamConceded'].apply(lambda x: f'{x:.2f}')
+    df_shield_display['TotalTeamConceded'] = df_shield_display['TotalTeamConceded'].astype(int)
+    df_shield_display = df_shield_display.rename(columns={'AvgTeamConceded': '평균 실점', 'TotalTeamConceded': '총 실점'})
+    st.markdown(df_to_html_table(df_shield_display), unsafe_allow_html=True)
 
 # ==========================================
 # 탭 3: 트렌드 분석
