@@ -30,8 +30,9 @@ def df_to_html_table(df, center_align=True, match_result=False):
         cell_style = 'text-align: left; padding: 8px 12px;'
         header_style = 'text-align: left; padding: 8px 12px; font-weight: 700; background-color: #dee2e6;'
     
-    # HTML 테이블 생성
-    html = '<table style="width: 100%; border-collapse: collapse; color: #212529;">'
+    # HTML 테이블 생성 (모바일용 가로 스크롤 컨테이너 포함)
+    html = '<div class="table-container">'
+    html += '<table style="width: 100%; border-collapse: collapse; color: #212529;">'
     
     # 헤더
     html += '<thead><tr>'
@@ -51,6 +52,7 @@ def df_to_html_table(df, center_align=True, match_result=False):
             html += f'<td style="{cell_style}">{val}</td>'
         html += '</tr>'
     html += '</tbody></table>'
+    html += '</div>'
     
     return html
 
@@ -97,26 +99,31 @@ st.markdown("""
     
     /* 탭 스타일 - 모바일 최적화 */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
+        gap: 4px;
         background-color: #ffffff !important;
+        overflow-x: auto !important;
+        flex-wrap: nowrap !important;
+        padding-bottom: 5px !important;
     }
     .stTabs [data-baseweb="tab"] {
-        height: 50px;
+        height: 45px;
         white-space: nowrap;
-        background-color: #e9ecef !important;
+        background-color: #f8f9fa !important;
         border-radius: 4px;
         color: #495057 !important;
-        padding: 10px 12px;
-        font-size: 14px;
+        padding: 8px 10px;
+        font-size: 13px;
+        border: 1px solid #e9ecef !important;
     }
     .stTabs [aria-selected="true"] {
         background-color: #0d6efd !important;
         color: white !important;
+        border-color: #0d6efd !important;
     }
     
     /* 메트릭 박스 */
     div[data-testid="stMetricValue"] {
-        font-size: 24px;
+        font-size: 20px !important;
         color: #0d6efd !important;
     }
     div[data-testid="stMetricLabel"] {
@@ -129,21 +136,32 @@ st.markdown("""
         background-color: #ffffff !important;
     }
     
-    /* 테이블 내 텍스트 가독성 향상 및 가운데 정렬 */
+    /* 테이블 컨테이너 가로 스크롤 강제 */
+    .table-container {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        margin-bottom: 1rem;
+    }
+    
     table {
         color: #212529 !important;
         background-color: #ffffff !important;
-        width: auto !important;
+        width: 100% !important;
+        min-width: 400px; /* 너무 쪼그라들지 않게 */
+        border-collapse: collapse;
+        font-size: 14px;
     }
     
     /* 테이블 헤더 - 굵게, 가운데 정렬 */
     th {
-        background-color: #dee2e6 !important;
-        color: #212529 !important;
+        background-color: #f1f3f5 !important;
+        color: #495057 !important;
         font-weight: 700 !important;
         text-align: center !important;
-        padding: 8px 12px !important;
-        white-space: nowrap !important;
+        padding: 10px 6px !important;
+        border: 1px solid #dee2e6 !important;
+        white-space: nowrap;
     }
     
     /* 테이블 데이터 셀 - 가운데 정렬 */
@@ -151,7 +169,8 @@ st.markdown("""
         background-color: #ffffff !important;
         color: #212529 !important;
         text-align: center !important;
-        padding: 8px 12px !important;
+        padding: 10px 6px !important;
+        border: 1px solid #dee2e6 !important;
     }
     
     /* 인덱스 컬럼 스타일 */
