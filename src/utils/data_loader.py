@@ -3,18 +3,25 @@ import os
 import streamlit as st
 
 def load_data_from_url():
-    """공개된 Google Sheets URL에서 데이터를 읽어옵니다."""
+    """공개된 Google Sheets URL에서 데이터를 읽어옵니다. (원본 텍스트 유지 방식)"""
     try:
         base_url = st.secrets["google_sheets"]["spreadsheet_url"]
-        match_url = f"{base_url.split('/edit')[0]}/gviz/tq?tqx=out:csv&sheet=match_result"
-        att_url = f"{base_url.split('/edit')[0]}/gviz/tq?tqx=out:csv&sheet=attendance"
+        # gviz 대신 원본 export 방식을 사용하여 데이터 유실 방지
+        # gid=0은 첫 번째 시트를 의미하지만, 시트 이름으로 가져오는 것이 더 안정적
+        match_url = f"{base_url.split('/edit')[0]}/export?format=csv&sheet=match_result"
+        att_url = f"{base_url.split('/edit')[0]}/export?format=csv&sheet=attendance"
         
-        df_match = pd.read_csv(match_url)
-        df_att = pd.read_csv(att_url)
+        # 모든 데이터를 문자열로 로드
+        df_match = pd.read_csv(match_url, dtype=str)
+        df_att = pd.read_csv(att_url, dtype=str)
         
-        # 데이터가 비어있는 행 제거
-        if not df_match.empty:
-            df_match = df_match.dropna(subset=['주차']).reset_index(drop=True)
+        # 결측값 및 주차 정보 정제
+        df_match = df_match.fillna('').replace('nan', '')
+        df_att = df_att.fillna('').replace('nan', '')
+        
+        # '주차' 컬럼이 비어있는 행 제거
+        if not df_match.empty and '주차' in df_match.columns:
+            df_match = df_match[df_match['주차'].str.strip() != ''].reset_index(drop=True)
             
         return df_match, df_att
     except Exception as e:
@@ -90,42 +97,48 @@ def process_match_results(df_match):
         scores = {}
         participating = []
         
+        # 각 팀의 득점 파싱 (우선 데이터가 있는 팀만 분류)
         for team in teams:
             val = row[team]
             goals = count_goals(val)
             if goals is not None:
                 scores[team] = goals
                 participating.append(team)
-                team_stats[team]['GF'] += goals
-                
-                # 선수 득점 누적
-                for p in get_scorers_list(val):
-                    player_stats[p] = player_stats.get(p, 0) + 1
         
-        if len(participating) < 2: continue
+        # ⚠️ 최소 2개 팀 이상 참여해야 유효한 경기로 인정
+        if len(participating) < 2: 
+            continue
             
-        # 승무패 판별
-        for my_team in participating:
-            my_score = scores[my_team]
-            opponents = [scores[t] for t in participating if t != my_team]
+        # 유효한 경기인 경우에만 통계 산출 시작
+        for team in participating:
+            goals = scores[team]
+            # 팀 득점 누적
+            team_stats[team]['GF'] += goals
+            
+            # 선수 득점 누적 (자살골 제외 리스트 사용)
+            for p in get_scorers_list(row[team]):
+                player_stats[p] = player_stats.get(p, 0) + 1
+            
+            # 승무패 및 실점 판별
+            opponents = [scores[t] for t in participating if t != team]
             max_opp = max(opponents) if opponents else 0
             
-            team_stats[my_team]['GA'] += sum(opponents)
-            team_stats[my_team]['Played'] += 1
+            team_stats[team]['GA'] += sum(opponents)
+            team_stats[team]['Played'] += 1
             
             p_gained = 0
-            if my_score > max_opp:
-                team_stats[my_team]['W'] += 1
-                team_stats[my_team]['Points'] += 3
+            if goals > max_opp:
+                team_stats[team]['W'] += 1
+                team_stats[team]['Points'] += 3
                 p_gained = 3
-            elif my_score == max_opp:
-                team_stats[my_team]['D'] += 1
-                team_stats[my_team]['Points'] += 1
+            elif goals == max_opp:
+                team_stats[team]['D'] += 1
+                team_stats[team]['Points'] += 1
                 p_gained = 1
             else:
-                team_stats[my_team]['L'] += 1
+                team_stats[team]['L'] += 1
             
-            history_records.append({'Week': week, 'Team': my_team, 'PointsGained': p_gained})
+            history_records.append({'Week': week, 'Team': team, 'PointsGained': p_gained})
 
     # 4. 결과 정리
     df_teams = pd.DataFrame(team_stats).T.reset_index().rename(columns={'index': 'Team'})
