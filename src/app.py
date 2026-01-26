@@ -501,8 +501,8 @@ with tab2:
         sort_col='경기당 득점', 
         title="⚡ 가성비 스트라이커 (Top 10)", 
         caption="최강의 효율! 적은 기회도 놓치지 않고 득점으로 연결하는 해결사입니다. (득점/출석횟수)",
-        rename_map={'Player': '선수', 'Team': '팀', '출석 당 득점_disp': '출석 당 득점', '득점': '개인득점'},
-        display_cols=['Player', '출석 당 득점_disp', '득점', 'Team']
+        rename_map={'Player': '선수', 'Team': '팀', '출석 당 득점_disp': '출석 당 득점', '득점': '개인득점', '출석횟수': '출석'},
+        display_cols=['Player', '출석 당 득점_disp', '득점', '출석횟수', 'Team']
     )
     
     # 4. 승리 요정
@@ -513,8 +513,8 @@ with tab2:
         sort_col='출전_평균승점', 
         title="🧚 승리 요정 (Top 10)", 
         caption="승리의 부적! 내가 경기에 나서는 것만으로도 팀의 승리 확률이 올라갑니다. (나올 때 팀 평균 승점)",
-        rename_map={'Player': '선수', 'Team': '팀', '출석 당 팀승점_disp': '출석 당 팀승점', '팀승점합계': '누적 팀승점'},
-        display_cols=['Player', '출석 당 팀승점_disp', '팀승점합계', 'Team']
+        rename_map={'Player': '선수', 'Team': '팀', '출석 당 팀승점_disp': '출석 당 팀승점', '팀승점합계': '누적 팀승점', '출석횟수': '출석'},
+        display_cols=['Player', '출석 당 팀승점_disp', '팀승점합계', '출석횟수', 'Team']
     )
     
     # 5. 득점 폭격기
@@ -525,8 +525,8 @@ with tab2:
         sort_col='출전_평균득점', 
         title="🚀 득점 폭격기 (Top 10)", 
         caption="공격의 불씨! 내가 그라운드에 있으면 팀 전체의 화력이 불을 뿜습니다. (나올 때 팀 평균 득점)",
-        rename_map={'Player': '선수', 'Team': '팀', '출석 당 팀득점_disp': '출석 당 팀득점', '팀득점합계': '누적 팀 득점'},
-        display_cols=['Player', '출석 당 팀득점_disp', '팀득점합계', 'Team']
+        rename_map={'Player': '선수', 'Team': '팀', '출석 당 팀득점_disp': '출석 당 팀득점', '팀득점합계': '누적 팀 득점', '출석횟수': '출석'},
+        display_cols=['Player', '출석 당 팀득점_disp', '팀득점합계', '출석횟수', 'Team']
     )
     
     # 6. 통곡의 벽
@@ -537,8 +537,8 @@ with tab2:
         sort_col='출전_평균실점', 
         title="🧱 통곡의 벽 (Bottom 10)", 
         caption="철통 보안! 상대 공격수들을 절망에 빠뜨리는 든든한 수비의 핵심입니다. (나올 때 팀 평균 실점)",
-        rename_map={'Player': '선수', 'Team': '팀', '출석 당 팀실점_disp': '출석 당 팀실점', '팀실점합계': '누적 팀실점'},
-        display_cols=['Player', '출석 당 팀실점_disp', '팀실점합계', 'Team'],
+        rename_map={'Player': '선수', 'Team': '팀', '출석 당 팀실점_disp': '출석 당 팀실점', '팀실점합계': '누적 팀실점', '출석횟수': '출석'},
+        display_cols=['Player', '출석 당 팀실점_disp', '팀실점합계', '출석횟수', 'Team'],
         is_ascending=True # 실점은 낮은게 좋은 순위
     )
 
