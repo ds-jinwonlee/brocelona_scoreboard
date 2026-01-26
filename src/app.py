@@ -567,7 +567,7 @@ with tab2:
     
     df_players_all['TotalPointsContribution'] = df_players_all['Player'].apply(get_team_total_points)
     
-    df_lucky = df_players_all[df_players_all['AttendanceCount'] > 0].sort_values(by='PointsPerAtt', ascending=False).head(10).reset_index(drop=True)
+    df_lucky = df_players_all[df_players_all['AttendanceCount'] > 0].sort_values(by=['PointsPerAtt', 'TotalPointsContribution'], ascending=[False, False]).head(10).reset_index(drop=True)
     df_lucky.index += 1
     # HTML 테이블로 변경
     df_lucky_display = df_lucky[['Player', 'PointsPerAtt', 'TotalPointsContribution', 'AttendanceCount', 'Team']].rename(columns={'TotalPointsContribution': 'TotalPoints'}).copy()
