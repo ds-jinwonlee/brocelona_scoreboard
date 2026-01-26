@@ -35,9 +35,22 @@ def load_data_from_local():
     return df_match, df_att
 
 def load_data():
-    """데이터 로드 메인 함수"""
-    use_url = os.getenv('USE_GOOGLE_SHEETS', 'false').lower() == 'true'
-    if use_url:
+    """
+    데이터 로드 메인 함수.
+    1. st.secrets에 spreadsheet_url이 설정되어 있으면 구글 시트 우선 로드.
+    2. 환경 변수 USE_GOOGLE_SHEETS가 true여도 구글 시트 로드.
+    3. 그 외에는 로컬 데이터 로드.
+    """
+    use_url_env = os.getenv('USE_GOOGLE_SHEETS', 'false').lower() == 'true'
+    has_url_secret = False
+    
+    try:
+        if "google_sheets" in st.secrets and st.secrets["google_sheets"].get("spreadsheet_url"):
+            has_url_secret = True
+    except:
+        pass
+
+    if has_url_secret or use_url_env:
         return load_data_from_url()
     else:
         return load_data_from_local()
