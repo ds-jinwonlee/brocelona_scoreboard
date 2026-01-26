@@ -828,24 +828,29 @@ with tab4:
             'Player': '선수이름',
             '출석횟수': '🦸 아이언맨(출석)',
             '득점': '🎯 개인 득점',
-            '경기당 득점': '⚡ 출석 당 득점',
-            '출전_평균승점': '🧚 출석 당 팀승점',
-            '출전_평균득점': '🚀 출석 당 팀득점',
             '출전_평균실점': '🧱 출석 당 팀실점',
+            '임팩트_승점': '🔥 승점 임팩트',
+            '임팩트_득점': '🚀 득점 임팩트',
+            '임팩트_실점': '🛡️ 실점 임팩트',
             '팀승점합계': '팀 승점 합계',
             '팀실점합계': '팀 실점 합계'
         })
         
         # 숫자 형식 정리
-        cols_to_format = ['⚡ 출석 당 득점', '🧚 출석 당 팀승점', '🚀 출석 당 팀득점', '🧱 출석 당 팀실점']
+        cols_to_format = ['⚡ 출석 당 득점', '🧚 출석 당 팀승점', '🚀 출석 당 팀득점', '🧱 출석 당 팀실점', '🔥 승점 임팩트', '🚀 득점 임팩트', '🛡️ 실점 임팩트']
         for col in cols_to_format:
-            df_team_players[col] = df_team_players[col].apply(lambda x: f'{x:.2f}')
+            df_team_players[col] = df_team_players[col].apply(lambda x: f'{x:+.2f}')
             
         int_cols = ['🦸 아이언맨(출석)', '팀 승점 합계', '🎯 개인 득점', '팀 실점 합계']
         for col in int_cols:
             df_team_players[col] = df_team_players[col].fillna(0).astype(int)
             
-        display_cols = ['선수이름', '🦸 아이언맨(출석)', '🎯 개인 득점', '⚡ 출석 당 득점', '🧚 출석 당 팀승점', '🚀 출석 당 팀득점', '🧱 출석 당 팀실점', '팀 승점 합계', '팀 실점 합계']
+        display_cols = [
+            '선수이름', '🦸 아이언맨(출석)', '🎯 개인 득점', '⚡ 출석 당 득점', 
+            '🧚 출석 당 팀승점', '🚀 출석 당 팀득점', '🧱 출석 당 팀실점',
+            '🔥 승점 임팩트', '🚀 득점 임팩트', '🛡️ 실점 임팩트',
+            '팀 승점 합계', '팀 실점 합계'
+        ]
         st.markdown(df_to_html_table(df_team_players[display_cols].sort_values(by='🦸 아이언맨(출석)', ascending=False).reset_index(drop=True)), unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
 # ==========================================
@@ -902,8 +907,22 @@ with tab5:
                     st.markdown(f"**{display_team_map.get(t_raw)}**")
                     t_df = df[df['Team'] == t_raw].sort_values(by=target_col, ascending=is_ascending).head(5).reset_index(drop=True)
                     t_df.index += 1
-                    t_disp = t_df[['Player', target_col]].rename(columns={'Player': '선수', target_col: '임팩트'})
-                    t_disp['임팩트'] = t_disp['임팩트'].apply(lambda x: f'{x:+.2f}')
+                    
+                    baseline = target_col.replace('임팩트_', '')
+                    t_disp = t_df[['Player', target_col, f'출전_평균{baseline}', f'결장_평균{baseline}']].copy()
+                    
+                    col_map_t = {
+                        'Player': '선수',
+                        target_col: '🔥 임팩트',
+                        f'출전_평균{baseline}': '출전(A)',
+                        f'결장_평균{baseline}': '결장(B)'
+                    }
+                    t_disp = t_disp.rename(columns=col_map_t)
+                    
+                    # 소수점 포맷
+                    for c in ['🔥 임팩트', '출전(A)', '결장(B)']:
+                        t_disp[c] = t_disp[c].apply(lambda x: f'{x:+.2f}' if pd.notna(x) else '0.00')
+                        
                     st.markdown(df_to_html_table(t_disp), unsafe_allow_html=True)
             st.markdown("---")
 
