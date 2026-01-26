@@ -351,122 +351,6 @@ with tab1:
     display_cols = ['팀', '승점', '경기수', '승', '무', '패', '득점', '실점', '득실차']
     st.markdown(df_to_html_table(df_teams_display[display_cols].reset_index(drop=True)), unsafe_allow_html=True)
     
-    # 팀별 통합 승점 테이블
-    st.subheader("Team Stats Comparison")
-    st.markdown("### 주차별 및 누적 승점")
-    
-    # 주차별 팀 승점 계산 (데이터 타입 통일을 위해 정수 변환)
-    df_history['Week'] = df_history['Week'].astype(int)
-    weekly_points = df_history.pivot_table(index='Week', columns='Team', values='PointsGained', aggfunc='sum').fillna(0)
-    
-    # 누적 승점 계산
-    total_points = df_teams.set_index('Team')['Points'].to_dict()
-    
-    # 통합 테이블 생성
-    points_dict = {'비고': ['종합'] + [f'{w}주차' for w in sorted(weekly_points.index, reverse=True)]}
-    for team in all_teams_raw:
-        display_name = display_team_map.get(team, team)
-        points_dict[display_name] = [total_points.get(team, 0)] + [
-            int(weekly_points.loc[w, team]) if w in weekly_points.index and team in weekly_points.columns else 0 
-            for w in sorted(weekly_points.index, reverse=True)
-        ]
-    
-    points_table = pd.DataFrame(points_dict)
-    
-    # HTML 테이블로 렌더링
-    points_table_display = points_table.set_index('비고')
-    st.markdown(df_to_html_table(points_table_display), unsafe_allow_html=True)
-    
-    st.markdown("### 주차별 및 누적 득점/실점")
-    
-    # 주차별 득실 계산 (모든 숫자를 정수형으로 관리)
-    df_match['주차'] = df_match['주차'].astype(int)
-    weekly_stats = []
-    for idx, row in df_match.iterrows():
-        week = row['주차']
-        for team in all_teams_raw:
-            if team in df_match.columns:
-                scorer_val = row[team]
-                goals = count_goals(scorer_val)
-                if goals is not None:
-                    weekly_stats.append({
-                        '주차': week,
-                        '팀': team,
-                        '지표': '득점',
-                        '값': int(goals)
-                    })
-    
-    # 실점 계산
-    for week in df_match['주차'].unique():
-        week_data = df_match[df_match['주차'] == week]
-        for team in all_teams_raw:
-            conceded = 0
-            for _, row in week_data.iterrows():
-                if team in row:
-                    my_goals = count_goals(row[team])
-                    if my_goals is not None:
-                        for opp_team in all_teams_raw:
-                            if opp_team != team and opp_team in row:
-                                opp_goals = count_goals(row[opp_team])
-                                if opp_goals is not None:
-                                    conceded += int(opp_goals)
-            weekly_stats.append({
-                '주차': week,
-                '팀': team,
-                '지표': '실점',
-                '값': conceded
-            })
-    
-    df_weekly = pd.DataFrame(weekly_stats)
-    
-    # 주차별 득점/실점 테이블
-    df_goals_weekly = df_weekly[df_weekly['지표'] == '득점'].pivot_table(
-        index='주차', columns='팀', values='값', aggfunc='sum'
-    ).fillna(0)
-    
-    df_conceded_weekly = df_weekly[df_weekly['지표'] == '실점'].pivot_table(
-        index='주차', columns='팀', values='값', aggfunc='sum'
-    ).fillna(0)
-    
-    # 누적 득점/실점
-    total_gf = df_teams.set_index('Team')['GF'].to_dict()
-    total_ga = df_teams.set_index('Team')['GA'].to_dict()
-    total_gd = df_teams.set_index('Team')['GD'].to_dict()
-    
-    # 각 팀별 테이블 데이터 생성
-    weeks_sorted = sorted(df_goals_weekly.index, reverse=True)
-    row_labels = ['종합'] + [f'{w}주차' for w in weeks_sorted]
-    
-    # 동적으로 팀별 컬럼 생성 (표 제목 형식 통일)
-    cols = st.columns(len(all_teams_raw))
-    
-    for i, team in enumerate(all_teams_raw):
-        display_name = display_team_map.get(team, team)
-        team_data = []
-        for idx, label in enumerate(row_labels):
-            if idx == 0:  # 종합
-                team_data.append({
-                    '비고': label,
-                    '득점': int(total_gf.get(team, 0)),
-                    '실점': int(total_ga.get(team, 0)),
-                    '득실': int(total_gd.get(team, 0))
-                })
-            else:
-                w = weeks_sorted[idx - 1]
-                gf = int(df_goals_weekly.loc[w, team]) if w in df_goals_weekly.index and team in df_goals_weekly.columns else 0
-                ga = int(df_conceded_weekly.loc[w, team]) if w in df_conceded_weekly.index and team in df_conceded_weekly.columns else 0
-                team_data.append({
-                    '비고': label,
-                    '득점': gf,
-                    '실점': ga,
-                    '득실': gf - ga
-                })
-        
-        df_team_display = pd.DataFrame(team_data)
-        with cols[i]:
-            st.markdown(f"#### {display_name}")
-            st.markdown(df_to_html_table(df_team_display.set_index('비고')), unsafe_allow_html=True)
-    
     # 경기 결과 원본 데이터
     st.markdown("---")
     st.markdown("### 📋 경기 결과 상세")
@@ -541,6 +425,7 @@ with tab1:
 with tab2:
     # 1. 득점 랭킹 (Golden Boot)
     st.subheader("👟 Golden Boot (득점왕)")
+    st.caption("리그 최고의 득점 기계! 가장 많은 골을 터뜨린 주인공입니다.")
     
     df_scorers_display = df_players_all.sort_values(by='득점', ascending=False).head(10).copy()
     df_scorers_display['Team'] = df_scorers_display['Team'].map(display_team_map)
