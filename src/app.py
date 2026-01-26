@@ -584,7 +584,7 @@ with tab3:
     st.subheader("📊 주차별 추이 분석")
     
     all_weeks = sorted(df_history['Week'].unique())
-    teams_list = all_teams
+    teams_list = all_teams_raw
     
     # ========== 1. 승점 복합 그래프 ==========
     st.markdown("### 🏆 승점 추이 (주차별 + 누적)")
@@ -612,11 +612,12 @@ with tab3:
     # 막대 그래프 (주차별 승점)
     for team in teams_list:
         team_data = df_weekly_points[df_weekly_points['Team'] == team]
+        display_name = display_team_map.get(team, team)
         fig_points.add_trace(
             go.Bar(
                 x=team_data['Week'],
                 y=team_data['Points'],
-                name=f'{team} (주차별)',
+                name=f'{display_name} (주차별)',
                 marker_color=team_colors[team],
                 opacity=0.6,
                 width=0.25,
@@ -628,11 +629,12 @@ with tab3:
     # 선 그래프 (누적 승점)
     for team in teams_list:
         team_data = df_cumulative_points[df_cumulative_points['Team'] == team]
+        display_name = display_team_map.get(team, team)
         fig_points.add_trace(
             go.Scatter(
                 x=team_data['Week'],
                 y=team_data['CumulativePoints'],
-                name=f'{team} (누적)',
+                name=f'{display_name} (누적)',
                 line=dict(color=team_colors[team], width=3),
                 mode='lines+markers',
                 legendgroup=team
@@ -684,11 +686,12 @@ with tab3:
     # 막대 그래프 (주차별 득점)
     for team in teams_list:
         team_data = df_weekly_goals[df_weekly_goals['Team'] == team]
+        display_name = display_team_map.get(team, team)
         fig_goals.add_trace(
             go.Bar(
                 x=team_data['Week'],
                 y=team_data['Goals'],
-                name=f'{team} (주차별)',
+                name=f'{display_name} (주차별)',
                 marker_color=team_colors[team],
                 opacity=0.6,
                 width=0.25,
@@ -700,11 +703,12 @@ with tab3:
     # 선 그래프 (누적 득점)
     for team in teams_list:
         team_data = df_cumulative_goals[df_cumulative_goals['Team'] == team]
+        display_name = display_team_map.get(team, team)
         fig_goals.add_trace(
             go.Scatter(
                 x=team_data['Week'],
                 y=team_data['CumulativeGoals'],
-                name=f'{team} (누적)',
+                name=f'{display_name} (누적)',
                 line=dict(color=team_colors[team], width=3),
                 mode='lines+markers',
                 legendgroup=team
@@ -760,11 +764,12 @@ with tab3:
     # 막대 그래프 (주차별 실점)
     for team in teams_list:
         team_data = df_weekly_conceded[df_weekly_conceded['Team'] == team]
+        display_name = display_team_map.get(team, team)
         fig_conceded.add_trace(
             go.Bar(
                 x=team_data['Week'],
                 y=team_data['Conceded'],
-                name=f'{team} (주차별)',
+                name=f'{display_name} (주차별)',
                 marker_color=team_colors[team],
                 opacity=0.6,
                 width=0.25,
@@ -776,11 +781,12 @@ with tab3:
     # 선 그래프 (누적 실점)
     for team in teams_list:
         team_data = df_cumulative_conceded[df_cumulative_conceded['Team'] == team]
+        display_name = display_team_map.get(team, team)
         fig_conceded.add_trace(
             go.Scatter(
                 x=team_data['Week'],
                 y=team_data['CumulativeConceded'],
-                name=f'{team} (누적)',
+                name=f'{display_name} (누적)',
                 line=dict(color=team_colors[team], width=3),
                 mode='lines+markers',
                 legendgroup=team
@@ -830,11 +836,12 @@ with tab3:
     # 막대 그래프 (주차별 득실차)
     for team in teams_list:
         team_data = df_weekly_gd[df_weekly_gd['Team'] == team]
+        display_name = display_team_map.get(team, team)
         fig_gd.add_trace(
             go.Bar(
                 x=team_data['Week'],
                 y=team_data['GD'],
-                name=f'{team} (주차별)',
+                name=f'{display_name} (주차별)',
                 marker_color=team_colors[team],
                 opacity=0.6,
                 width=0.25,
@@ -846,11 +853,12 @@ with tab3:
     # 선 그래프 (누적 득실차)
     for team in teams_list:
         team_data = df_cumulative_gd[df_cumulative_gd['Team'] == team]
+        display_name = display_team_map.get(team, team)
         fig_gd.add_trace(
             go.Scatter(
                 x=team_data['Week'],
                 y=team_data['CumulativeGD'],
-                name=f'{team} (누적)',
+                name=f'{display_name} (누적)',
                 line=dict(color=team_colors[team], width=3),
                 mode='lines+markers',
                 legendgroup=team
