@@ -227,6 +227,23 @@ except Exception as e:
     st.stop()
 
 # --- 탭 구성 ---
+all_teams = df_teams['Team'].tolist()
+
+# 팀 색상 매핑 함수 (이름에 키워드가 포함된 경우 해당 색상 부여)
+def get_team_color(team_name):
+    if '레드' in team_name: return '#ef4444'
+    if '블루' in team_name: return '#3b82f6'
+    if '옐로' in team_name: return '#eab308'
+    return '#6c757d' # 기본 회색
+
+# 실제 팀별 색상 딕셔너리 생성
+team_colors = {}
+for t in all_teams:
+    if '레드' in t: team_colors[t] = '#ef4444'
+    elif '블루' in t: team_colors[t] = '#3b82f6'
+    elif '옐로' in t: team_colors[t] = '#eab308'
+    else: team_colors[t] = '#6c757d'
+
 tab1, tab2, tab3 = st.tabs(["🏆 종합 순위", "🏃 개인 기록", "📈 트렌드 분석"])
 
 # ==========================================
@@ -266,12 +283,14 @@ with tab1:
     total_points = df_teams.set_index('Team')['Points'].to_dict()
     
     # 통합 테이블 생성
-    points_table = pd.DataFrame({
-        '비고': ['종합'] + [f'{w}주차' for w in sorted(weekly_points.index, reverse=True)],
-        '레드': [total_points.get('레드', 0)] + [weekly_points.loc[w, '레드'] if w in weekly_points.index and '레드' in weekly_points.columns else 0 for w in sorted(weekly_points.index, reverse=True)],
-        '블루': [total_points.get('블루', 0)] + [weekly_points.loc[w, '블루'] if w in weekly_points.index and '블루' in weekly_points.columns else 0 for w in sorted(weekly_points.index, reverse=True)],
-        '옐로': [total_points.get('옐로', 0)] + [weekly_points.loc[w, '옐로'] if w in weekly_points.index and '옐로' in weekly_points.columns else 0 for w in sorted(weekly_points.index, reverse=True)]
-    })
+    points_dict = {'비고': ['종합'] + [f'{w}주차' for w in sorted(weekly_points.index, reverse=True)]}
+    for team in all_teams:
+        points_dict[team] = [total_points.get(team, 0)] + [
+            weekly_points.loc[w, team] if w in weekly_points.index and team in weekly_points.columns else 0 
+            for w in sorted(weekly_points.index, reverse=True)
+        ]
+    
+    points_table = pd.DataFrame(points_dict)
     
     # HTML 테이블로 렌더링
     points_table_display = points_table.set_index('비고')
@@ -283,30 +302,32 @@ with tab1:
     weekly_stats = []
     for idx, row in df_match.iterrows():
         week = row['주차']
-        for team in ['레드', '블루', '옐로']:
-            scorer_val = row[team]
-            goals = count_goals(scorer_val)
-            if goals is not None:
-                weekly_stats.append({
-                    '주차': week,
-                    '팀': team,
-                    '지표': '득점',
-                    '값': goals
-                })
+        for team in all_teams:
+            if team in df_match.columns:
+                scorer_val = row[team]
+                goals = count_goals(scorer_val)
+                if goals is not None:
+                    weekly_stats.append({
+                        '주차': week,
+                        '팀': team,
+                        '지표': '득점',
+                        '값': goals
+                    })
     
     # 실점 계산
     for week in df_match['주차'].unique():
         week_data = df_match[df_match['주차'] == week]
-        for team in ['레드', '블루', '옐로']:
+        for team in all_teams:
             conceded = 0
             for _, row in week_data.iterrows():
-                my_goals = count_goals(row[team])
-                if my_goals is not None:
-                    for opp_team in ['레드', '블루', '옐로']:
-                        if opp_team != team:
-                            opp_goals = count_goals(row[opp_team])
-                            if opp_goals is not None:
-                                conceded += opp_goals
+                if team in row:
+                    my_goals = count_goals(row[team])
+                    if my_goals is not None:
+                        for opp_team in all_teams:
+                            if opp_team != team and opp_team in row:
+                                opp_goals = count_goals(row[opp_team])
+                                if opp_goals is not None:
+                                    conceded += opp_goals
             weekly_stats.append({
                 '주차': week,
                 '팀': team,
@@ -334,96 +355,42 @@ with tab1:
     weeks_sorted = sorted(df_goals_weekly.index, reverse=True)
     row_labels = ['종합'] + [f'{w}주차' for w in weeks_sorted]
     
-    # 레드 팀 데이터
-    red_data = []
-    for idx, label in enumerate(row_labels):
-        if idx == 0:  # 종합
-            red_data.append({
-                '비고': label,
-                '득점': total_gf.get('레드', 0),
-                '실점': total_ga.get('레드', 0),
-                '득실': total_gd.get('레드', 0)
-            })
-        else:
-            w = weeks_sorted[idx - 1]
-            gf = df_goals_weekly.loc[w, '레드'] if w in df_goals_weekly.index and '레드' in df_goals_weekly.columns else 0
-            ga = df_conceded_weekly.loc[w, '레드'] if w in df_conceded_weekly.index and '레드' in df_conceded_weekly.columns else 0
-            red_data.append({
-                '비고': label,
-                '득점': gf,
-                '실점': ga,
-                '득실': gf - ga
-            })
+    # 동적으로 팀별 컬럼 생성
+    cols = st.columns(len(all_teams))
     
-    # 블루 팀 데이터
-    blue_data = []
-    for idx, label in enumerate(row_labels):
-        if idx == 0:  # 종합
-            blue_data.append({
-                '비고': label,
-                '득점': total_gf.get('블루', 0),
-                '실점': total_ga.get('블루', 0),
-                '득실': total_gd.get('블루', 0)
-            })
-        else:
-            w = weeks_sorted[idx - 1]
-            gf = df_goals_weekly.loc[w, '블루'] if w in df_goals_weekly.index and '블루' in df_goals_weekly.columns else 0
-            ga = df_conceded_weekly.loc[w, '블루'] if w in df_conceded_weekly.index and '블루' in df_conceded_weekly.columns else 0
-            blue_data.append({
-                '비고': label,
-                '득점': gf,
-                '실점': ga,
-                '득실': gf - ga
-            })
-    
-    # 옐로 팀 데이터
-    yellow_data = []
-    for idx, label in enumerate(row_labels):
-        if idx == 0:  # 종합
-            yellow_data.append({
-                '비고': label,
-                '득점': total_gf.get('옐로', 0),
-                '실점': total_ga.get('옐로', 0),
-                '득실': total_gd.get('옐로', 0)
-            })
-        else:
-            w = weeks_sorted[idx - 1]
-            gf = df_goals_weekly.loc[w, '옐로'] if w in df_goals_weekly.index and '옐로' in df_goals_weekly.columns else 0
-            ga = df_conceded_weekly.loc[w, '옐로'] if w in df_conceded_weekly.index and '옐로' in df_conceded_weekly.columns else 0
-            yellow_data.append({
-                '비고': label,
-                '득점': gf,
-                '실점': ga,
-                '득실': gf - ga
-            })
-    
-    # DataFrame 생성
-    df_red = pd.DataFrame(red_data)
-    df_blue = pd.DataFrame(blue_data)
-    df_yellow = pd.DataFrame(yellow_data)
-    
-    # 3개의 컬럼으로 나란히 배치
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.markdown("#### 🔴 레드")
-        st.markdown(df_to_html_table(df_red.set_index('비고')), unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("#### 🔵 블루")
-        st.markdown(df_to_html_table(df_blue.set_index('비고')), unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown("#### 🟡 옐로")
-        st.markdown(df_to_html_table(df_yellow.set_index('비고')), unsafe_allow_html=True)
+    for i, team in enumerate(all_teams):
+        team_data = []
+        for idx, label in enumerate(row_labels):
+            if idx == 0:  # 종합
+                team_data.append({
+                    '비고': label,
+                    '득점': total_gf.get(team, 0),
+                    '실점': total_ga.get(team, 0),
+                    '득실': total_gd.get(team, 0)
+                })
+            else:
+                w = weeks_sorted[idx - 1]
+                gf = df_goals_weekly.loc[w, team] if w in df_goals_weekly.index and team in df_goals_weekly.columns else 0
+                ga = df_conceded_weekly.loc[w, team] if w in df_conceded_weekly.index and team in df_conceded_weekly.columns else 0
+                team_data.append({
+                    '비고': label,
+                    '득점': gf,
+                    '실점': ga,
+                    '득실': gf - ga
+                })
+        
+        df_team_display = pd.DataFrame(team_data)
+        with cols[i]:
+            icon = "🔴" if '레드' in team else "🔵" if '블루' in team else "🟡" if '옐로' in team else "⚪"
+            st.markdown(f"#### {icon} {team}")
+            st.markdown(df_to_html_table(df_team_display.set_index('비고')), unsafe_allow_html=True)
     
     # 경기 결과 원본 데이터
     st.markdown("---")
     st.markdown("### 📋 경기 결과 상세")
     
-    # match_result_sample.tsv를 주차별로 보기 좋게 표시
+    # 경기 결과 원본 데이터 표시
     df_match_display = df_match.copy()
-    df_match_display.columns = ['주차', '라운드', '레드', '블루', '옐로']
     
     # 주차별로 그룹화하여 표시
     for week in sorted(df_match_display['주차'].unique(), reverse=True):
@@ -435,37 +402,38 @@ with tab1:
             for _, row in week_data.iterrows():
                 round_num = int(row['라운드'])
                 
-                # 각 팀의 득점 계산
-                red_goals = count_goals(row['레드'])
-                blue_goals = count_goals(row['블루'])
-                yellow_goals = count_goals(row['옐로'])
+                # 각 팀의 결과 정보 생성
+                res_row = {'라운드': round_num}
                 
-                # 득점자 리스트 추출
-                red_scorers = get_scorers_list(row['레드']) if red_goals else []
-                blue_scorers = get_scorers_list(row['블루']) if blue_goals else []
-                yellow_scorers = get_scorers_list(row['옐로']) if yellow_goals else []
+                # 모든 팀의 점수 미리 계산
+                team_scores = {}
+                for team in all_teams:
+                    if team in row:
+                        team_scores[team] = count_goals(row[team])
                 
-                # 결과 판정 함수
-                def format_result(my_goals, my_scorers, opp_goals_list):
-                    if my_goals is None:
-                        return '-'
-                    max_opp = max([g for g in opp_goals_list if g is not None], default=0)
-                    
-                    scorers_text = f" ({', '.join(my_scorers)})" if my_scorers else ""
-                    
-                    if my_goals > max_opp:
-                        return f"승{scorers_text}"
-                    elif my_goals == max_opp:
-                        return f"무{scorers_text}" if my_goals > 0 else "무"
+                for team in all_teams:
+                    if team in row:
+                        my_goals = team_scores[team]
+                        if my_goals is None:
+                            res_row[team] = '-'
+                            continue
+                            
+                        my_scorers = get_scorers_list(row[team])
+                        opp_scores = [v for k, v in team_scores.items() if k != team and v is not None]
+                        max_opp = max(opp_scores) if opp_scores else 0
+                        
+                        scorers_text = f" ({', '.join(my_scorers)})" if my_scorers else ""
+                        
+                        if my_goals > max_opp:
+                            res_row[team] = f"승{scorers_text}"
+                        elif my_goals == max_opp:
+                            res_row[team] = f"무{scorers_text}" if my_goals > 0 else "무"
+                        else:
+                            res_row[team] = f"패{scorers_text}" if my_scorers else "패"
                     else:
-                        return f"패{scorers_text}" if my_scorers else "패"
+                        res_row[team] = '-'
                 
-                formatted_data.append({
-                    '라운드': round_num,
-                    '레드': format_result(red_goals, red_scorers, [blue_goals, yellow_goals]),
-                    '블루': format_result(blue_goals, blue_scorers, [red_goals, yellow_goals]),
-                    '옐로': format_result(yellow_goals, yellow_scorers, [red_goals, blue_goals])
-                })
+                formatted_data.append(res_row)
             
             # DataFrame 생성
             formatted_df = pd.DataFrame(formatted_data)
@@ -474,12 +442,9 @@ with tab1:
             week_points = df_history[df_history['Week'] == week].groupby('Team')['PointsGained'].sum()
             
             # 승점 합계 row 추가
-            points_row = {
-                '라운드': '승점 합계',
-                '레드': int(week_points.get('레드', 0)),
-                '블루': int(week_points.get('블루', 0)),
-                '옐로': int(week_points.get('옐로', 0))
-            }
+            points_row = {'라운드': '승점 합계'}
+            for team in all_teams:
+                points_row[team] = int(week_points.get(team, 0))
             
             formatted_df = pd.concat([formatted_df, pd.DataFrame([points_row])], ignore_index=True)
             
@@ -610,8 +575,7 @@ with tab3:
     st.subheader("📊 주차별 추이 분석")
     
     all_weeks = sorted(df_history['Week'].unique())
-    teams_list = ['레드', '블루', '옐로']
-    team_colors = {'레드': '#ef4444', '블루': '#3b82f6', '옐로': '#eab308'}
+    teams_list = all_teams
     
     # ========== 1. 승점 복합 그래프 ==========
     st.markdown("### 🏆 승점 추이 (주차별 + 누적)")
