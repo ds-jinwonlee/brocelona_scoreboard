@@ -583,9 +583,7 @@ with tab2:
     st.subheader("⚽ 득점 요정 (Top 10)")
     st.caption("공식: (내가 출전한 주차에 우리 팀이 넣은 총 득점 합계) / 출전 횟수. 내가 나오면 우리 팀 화력이 얼마나 폭발하는지!")
     
-    # 주차별 팀 총 득점 계산
-    team_goals_by_week = df_match.groupby(['주차', '팀명' if '팀명' in df_match.columns else 'Team']).sum(numeric_only=True) # This is tricky due to raw names
-    # data_loader에서 처리한 weekly_stats 활용 제안
+    # data_loader에서 처리한 weekly_stats 활용
     df_goals_only = df_weekly[df_weekly['지표'] == '득점']
     
     def calculate_team_goal_contribution(player_name):
