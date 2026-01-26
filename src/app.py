@@ -217,6 +217,15 @@ st.markdown("""
 st.title("⚽ 26 Brocelona Iron League")
 st.markdown("매주 업데이트되는 브로셀로나 리그의 경기 결과와 승점 현황입니다.")
 
+# --- 팀 범례 (모바일 최적화용) ---
+st.markdown("""
+<div style="display: flex; gap: 15px; justify-content: center; align-items: center; background-color: #f8f9fa; padding: 12px; border-radius: 10px; margin: 5px 0 20px 0; border: 1px solid #e9ecef; flex-wrap: wrap;">
+    <div style="display: flex; align-items: center; gap: 6px;"><span style="font-size: 1.1rem;">🔴</span> <span style="font-weight: 700; color: #ef4444;">타르가르옌</span></div>
+    <div style="display: flex; align-items: center; gap: 6px;"><span style="font-size: 1.1rem;">🔵</span> <span style="font-weight: 700; color: #3b82f6;">스타크</span></div>
+    <div style="display: flex; align-items: center; gap: 6px;"><span style="font-size: 1.1rem;">🟡</span> <span style="font-weight: 700; color: #eab308;">라니스터</span></div>
+</div>
+""", unsafe_allow_html=True)
+
 # --- 데이터 로딩 ---
 try:
     df_match, df_att = load_data()
@@ -246,6 +255,12 @@ for t in all_teams_raw:
 
 # 표시용 팀 이름 매핑
 display_team_map = {t: format_team_name(t) for t in all_teams_raw}
+
+# 표 내부용 짧은 팀 이름 매핑 (이모지만 표시)
+team_short_map = {
+    t: ('🔴' if '레드' in t else '🔵' if '블루' in t else '🟡') 
+    for t in all_teams_raw
+}
 
 # --- 데이터 전처리를 위한 기본 정보 구성 ---
 df_history['Week'] = df_history['Week'].astype(int)
@@ -358,7 +373,7 @@ with tab1:
     
     # 순위표 표시
     df_teams_display = df_teams.copy()
-    df_teams_display['Team'] = df_teams_display['Team'].map(display_team_map)
+    df_teams_display['Team'] = df_teams_display['Team'].map(team_short_map)
     df_teams_display = df_teams_display.rename(columns={
         'Team': '팀',
         'Points': '승점',
@@ -401,11 +416,12 @@ with tab1:
                         team_scores[team] = count_goals(row[team])
                 
                 for team in all_teams_raw:
-                    display_name = display_team_map.get(team, team)
+                    # 표 헤더용 짧은 이름 사용
+                    short_name = team_short_map.get(team, team)
                     if team in row:
                         my_goals = team_scores[team]
                         if my_goals is None:
-                            res_row[display_name] = '-'
+                            res_row[short_name] = '-'
                             continue
                             
                         my_scorers = get_scorers_list(row[team])
@@ -415,13 +431,13 @@ with tab1:
                         scorers_text = f" ({', '.join(my_scorers)})" if my_scorers else ""
                         
                         if my_goals > max_opp:
-                            res_row[display_name] = f"승{scorers_text}"
+                            res_row[short_name] = f"승{scorers_text}"
                         elif my_goals == max_opp:
-                            res_row[display_name] = f"무{scorers_text}" if my_goals > 0 else "무"
+                            res_row[short_name] = f"무{scorers_text}" if my_goals > 0 else "무"
                         else:
-                            res_row[display_name] = f"패{scorers_text}" if my_scorers else "패"
+                            res_row[short_name] = f"패{scorers_text}" if my_scorers else "패"
                     else:
-                        res_row[display_name] = '-'
+                        res_row[short_name] = '-'
                 
                 formatted_data.append(res_row)
             
@@ -434,8 +450,9 @@ with tab1:
             # 승점 합계 row 추가
             points_row = {'라운드': '승점 합계'}
             for team in all_teams_raw:
-                display_name = display_team_map.get(team, team)
-                points_row[display_name] = int(week_points.get(team, 0))
+                # 합계 행에서도 짧은 이름 사용
+                short_name = team_short_map.get(team, team)
+                points_row[short_name] = int(week_points.get(team, 0))
             
             formatted_df = pd.concat([formatted_df, pd.DataFrame([points_row])], ignore_index=True)
             
@@ -455,7 +472,7 @@ with tab2:
         df_overall = df.sort_values(by=sort_col, ascending=is_ascending).head(10).reset_index(drop=True)
         df_overall.index += 1
         df_overall_disp = df_overall.copy()
-        df_overall_disp['Team'] = df_overall_disp['Team'].map(display_team_map)
+        df_overall_disp['Team'] = df_overall_disp['Team'].map(team_short_map)
         st.markdown(f"**전체 순위**")
         st.markdown(df_to_html_table(df_overall_disp[display_cols].rename(columns=rename_map)), unsafe_allow_html=True)
         
@@ -890,6 +907,11 @@ with tab4:
             '🧚 출석 당 팀승점', '🚀 출석 당 팀득점', '🧱 출석 당 팀실점',
             '🔥 승점 임팩트', '🚀 득점 임팩트', '🛡️ 실점 임팩트'
         ]
+        
+        # 표 내부의 팀명은 이모지로 (이미 팀별 섹션이지만 컬럼이 남아있을 경우를 대비하거나 명시적 표시 시 사용)
+        if 'Team' in df_team_players.columns:
+            df_team_players['Team'] = df_team_players['Team'].map(team_short_map)
+
         st.markdown(df_to_html_table(df_team_players[display_cols].sort_values(by='🦸 아이언맨(출석)', ascending=False).reset_index(drop=True)), unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
 # ==========================================
@@ -919,7 +941,7 @@ with tab5:
             baseline = target_col.replace('임팩트_', '')
             disp_cols = ['Player', target_col, f'출전_평균{baseline}', f'결장_평균{baseline}', 'Team']
             disp_df = sorted_df[disp_cols].copy()
-            disp_df['Team'] = disp_df['Team'].map(display_team_map)
+            disp_df['Team'] = disp_df['Team'].map(team_short_map)
             
             # 컬럼명 정리
             col_map = {
