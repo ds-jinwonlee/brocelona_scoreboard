@@ -279,63 +279,74 @@ for w in df_match['주차'].unique():
 df_weekly_ga = pd.DataFrame(weekly_ga_temp)
 
 # --- 모든 선수 지표 통합 계산 (임팩트 포함) ---
+# 1. 선수-팀 매핑 정보 확보
 player_team_map = df_att[['선수이름', '팀이름']].drop_duplicates().set_index('선수이름')['팀이름'].to_dict()
+
+# 2. 기초 데이터 병합 (출석 + 득점)
 att_counts = df_att_processed[df_att_processed['IsAttended'] == 1].groupby('선수이름')['WeekNum'].count().reset_index(name='출석횟수')
+df_players_base = pd.merge(att_counts, df_scorers.rename(columns={'Goals': '득점'}), left_on='선수이름', right_on='Player', how='outer').fillna(0)
+df_players_base['Player'] = df_players_base.apply(lambda x: x['선수이름'] if pd.notna(x['선수이름']) and x['선수이름'] != 0 else x['Player'], axis=1)
+df_players_base['Team'] = df_players_base['Player'].map(player_team_map)
+df_players_base = df_players_base[['Player', 'Team', '출석횟수', '득점']].reset_index(drop=True)
 
-df_players_raw = pd.merge(att_counts, df_scorers.rename(columns={'Goals': '득점'}), left_on='선수이름', right_on='Player', how='outer').fillna(0)
-df_players_raw['Team'] = df_players_raw['선수이름'].map(player_team_map)
-df_players_raw['Player'] = df_players_raw.apply(lambda x: x['선수이름'] if pd.notna(x['선수이름']) else x['Player'], axis=1)
-df_players_raw = df_players_raw.reset_index(drop=True) # 인덱스 초기화 추가
-
+# 3. 상세 지표 계산 함수
 def calculate_full_player_metrics(player_name):
-    att_rows = df_att_processed[(df_att_processed['선수이름'] == player_name) & (df_att_processed['IsAttended'] == 1)]
+    # 항상 14개의 요소를 반환해야 함 (순서 중요)
+    default_vals = [0.0] * 14
+    
     my_team = player_team_map.get(player_name)
-    if att_rows.empty or not my_team: return pd.Series([0]*12)
+    att_rows = df_att_processed[(df_att_processed['선수이름'] == player_name) & (df_att_processed['IsAttended'] == 1)]
+    
+    if att_rows.empty or not my_team:
+        return pd.Series(default_vals)
     
     present_weeks = att_rows['WeekNum'].unique().astype(int)
     all_weeks = sorted(df_history['Week'].unique())
     absent_weeks = [w for w in all_weeks if w not in present_weeks]
     
-    # 1. 출격 시 지표
-    p_pts = team_points_by_week[(team_points_by_week['Week'].isin(present_weeks)) & (team_points_by_week['Team'] == my_team)]['PointsGained']
-    p_gf = df_weekly_gf[(df_weekly_gf['Week'].isin(present_weeks)) & (df_weekly_gf['Team'] == my_team)]['GF']
-    p_ga = df_weekly_ga[(df_weekly_ga['Week'].isin(present_weeks)) & (df_weekly_ga['Team'] == my_team)]['GA']
+    # 출전 시 성적
+    p_pts_df = team_points_by_week[(team_points_by_week['Week'].isin(present_weeks)) & (team_points_by_week['Team'] == my_team)]['PointsGained']
+    p_gf_df = df_weekly_gf[(df_weekly_gf['Week'].isin(present_weeks)) & (df_weekly_gf['Team'] == my_team)]['GF']
+    p_ga_df = df_weekly_ga[(df_weekly_ga['Week'].isin(present_weeks)) & (df_weekly_ga['Team'] == my_team)]['GA']
     
-    avg_p_pts = p_pts.mean() if not p_pts.empty else 0
-    avg_p_gf = p_gf.mean() if not p_gf.empty else 0
-    avg_p_ga = p_ga.mean() if not p_ga.empty else 0
+    avg_p_pts = p_pts_df.mean() if not p_pts_df.empty else 0.0
+    avg_p_gf = p_gf_df.mean() if not p_gf_df.empty else 0.0
+    avg_p_ga = p_ga_df.mean() if not p_ga_df.empty else 0.0
     
-    # 2. 결장 시 지표
-    a_pts = team_points_by_week[(team_points_by_week['Week'].isin(absent_weeks)) & (team_points_by_week['Team'] == my_team)]['PointsGained']
-    a_gf = df_weekly_gf[(df_weekly_gf['Week'].isin(absent_weeks)) & (df_weekly_gf['Team'] == my_team)]['GF']
-    a_ga = df_weekly_ga[(df_weekly_ga['Week'].isin(absent_weeks)) & (df_weekly_ga['Team'] == my_team)]['GA']
+    # 결장 시 성적
+    a_pts_df = team_points_by_week[(team_points_by_week['Week'].isin(absent_weeks)) & (team_points_by_week['Team'] == my_team)]['PointsGained']
+    a_gf_df = df_weekly_gf[(df_weekly_gf['Week'].isin(absent_weeks)) & (df_weekly_gf['Team'] == my_team)]['GF']
+    a_ga_df = df_weekly_ga[(df_weekly_ga['Week'].isin(absent_weeks)) & (df_weekly_ga['Team'] == my_team)]['GA']
     
-    avg_a_pts = a_pts.mean() if not a_pts.empty else 0
-    avg_a_gf = a_gf.mean() if not a_gf.empty else 0
-    avg_a_ga = a_ga.mean() if not a_ga.empty else 0
+    avg_a_pts = a_pts_df.mean() if not a_pts_df.empty else 0.0
+    avg_a_gf = a_gf_df.mean() if not a_gf_df.empty else 0.0
+    avg_a_ga = a_ga_df.mean() if not a_ga_df.empty else 0.0
     
     return pd.Series([
-        p_pts.sum(), p_ga.sum(), p_gf.sum(),
-        avg_p_pts, avg_p_ga, avg_p_gf,
-        avg_a_pts, avg_a_ga, avg_a_gf,
-        avg_p_pts - avg_a_pts, avg_p_gf - avg_a_gf, avg_p_ga - avg_a_ga,
-        len(present_weeks), len(absent_weeks)
+        p_pts_df.sum(), p_ga_df.sum(), p_gf_df.sum(), # 누적 합계 (3)
+        avg_p_pts, avg_p_ga, avg_p_gf,             # 출전 평균 (3)
+        avg_a_pts, avg_a_ga, avg_a_gf,             # 결장 평균 (3)
+        avg_p_pts - avg_a_pts, avg_p_gf - avg_a_gf, avg_p_ga - avg_a_ga, # 임팩트 (3)
+        float(len(present_weeks)), float(len(absent_weeks)) # 주차수 (2)
     ])
 
-metrics_list = []
-for p in df_players_raw['Player']:
-    metrics_list.append(calculate_full_player_metrics(p))
+# 4. 전체 선수에 대해 지표 적용 (인덱스 정렬 유지)
+metrics_data = []
+for p_name in df_players_base['Player']:
+    metrics_data.append(calculate_full_player_metrics(p_name))
 
-metrics_df = pd.DataFrame(metrics_list, columns=[
+metrics_df = pd.DataFrame(metrics_data)
+metrics_df.columns = [
     '팀승점합계', '팀실점합계', '팀득점합계',
     '출전_평균승점', '출전_평균실점', '출전_평균팀득점',
     '결장_평균승점', '결장_평균실점', '결장_평균팀득점',
     '임팩트_승점', '임팩트_득점', '임팩트_실점',
     '출석주차수', '결장주차수'
-])
+]
 
-df_players_all = pd.concat([df_players_raw.drop(columns=['선수이름']), metrics_df], axis=1)
-df_players_all['경기당 득점'] = df_players_all['득점'] / df_players_all['출석횟수'].replace(0, 1)
+# 인덱스를 기준으로 완벽하게 합침
+df_players_all = pd.concat([df_players_base, metrics_df], axis=1)
+df_players_all['경기당 득점'] = (df_players_all['득점'] / df_players_all['출석횟수'].replace(0, 1)).fillna(0)
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["🏆 종합 순위", "🏃 개인 기록", "📈 트렌드 분석", "📊 선수 상세 데이터", "🌟 임팩트 분석"])
 
