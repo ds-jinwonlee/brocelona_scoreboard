@@ -289,36 +289,77 @@ df_players_all['Player'] = df_players_all.apply(lambda x: x['선수이름'] if p
 def calculate_full_player_metrics(player_name):
     att_rows = df_att_processed[(df_att_processed['선수이름'] == player_name) & (df_att_processed['IsAttended'] == 1)]
     my_team = player_team_map.get(player_name)
-    if att_rows.empty or not my_team: return pd.Series([0]*10)
+    if att_rows.empty or not my_team: return pd.Series([0]*16)
     
     present_weeks = att_rows['WeekNum'].unique().astype(int)
     all_weeks = sorted(df_history['Week'].unique())
     absent_weeks = [w for w in all_weeks if w not in present_weeks]
     
-    # 출격 시 지표
-    present_pts = team_points_by_week[(team_points_by_week['Week'].isin(present_weeks)) & (team_points_by_week['Team'] == my_team)]['PointsGained']
-    avg_present = present_pts.mean() if not present_pts.empty else 0
-    total_pts = present_pts.sum()
+    # 1. 출격 시 지표
+    p_pts = team_points_by_week[(team_points_by_week['Week'].isin(present_weeks)) & (team_points_by_week['Team'] == my_team)]['PointsGained']
+    p_gf = df_weekly_gf[(df_weekly_gf['Week'].isin(present_weeks)) & (df_weekly_gf['Team'] == my_team)]['GF']
+    p_ga = df_weekly_ga[(df_weekly_ga['Week'].isin(present_weeks)) & (df_weekly_ga['Team'] == my_team)]['GA']
     
-    total_tg = df_weekly_gf[(df_weekly_gf['Week'].isin(present_weeks)) & (df_weekly_gf['Team'] == my_team)]['GF'].sum()
-    total_ga = df_weekly_ga[(df_weekly_ga['Week'].isin(present_weeks)) & (df_weekly_ga['Team'] == my_team)]['GA'].sum()
+    avg_p_pts = p_pts.mean() if not p_pts.empty else 0
+    avg_p_gf = p_gf.mean() if not p_gf.empty else 0
+    avg_p_ga = p_ga.mean() if not p_ga.empty else 0
     
-    # 결장 시 지표
-    absent_pts = team_points_by_week[(team_points_by_week['Week'].isin(absent_weeks)) & (team_points_by_week['Team'] == my_team)]['PointsGained']
-    avg_absent = absent_pts.mean() if not absent_pts.empty else 0
+    # 2. 결장 시 지표
+    a_pts = team_points_by_week[(team_points_by_week['Week'].isin(absent_weeks)) & (team_points_by_week['Team'] == my_team)]['PointsGained']
+    a_gf = df_weekly_gf[(df_weekly_gf['Week'].isin(absent_weeks)) & (df_weekly_gf['Team'] == my_team)]['GF']
+    a_ga = df_weekly_ga[(df_weekly_ga['Week'].isin(absent_weeks)) & (df_weekly_ga['Team'] == my_team)]['GA']
     
-    impact = avg_present - avg_absent
-    count = len(present_weeks)
+    avg_a_pts = a_pts.mean() if not a_pts.empty else 0
+    avg_a_gf = a_gf.mean() if not a_gf.empty else 0
+    avg_a_ga = a_ga.mean() if not a_ga.empty else 0
+    
+    # 3. 임팩트 계산 (Present - Absent)
+    impact_pts = avg_p_pts - avg_a_pts
+    impact_gf = avg_p_gf - avg_a_gf
+    impact_ga = avg_p_ga - avg_a_ga
+    
+    count_p = len(present_weeks)
+    count_a = len(absent_weeks)
     
     return pd.Series([
-        total_pts, total_ga, total_tg,
-        avg_present, total_ga/count, total_tg/count,
-        avg_absent, impact, count, len(absent_weeks)
+        p_pts.sum(), p_ga.sum(), p_gf.sum(),
+        avg_p_pts, avg_p_ga, avg_p_gf,
+        avg_a_pts, avg_a_ga, avg_a_gf,
+        impact_pts, impact_ga, impact_ga, # Error in previous list length, let's keep it safe
+        impact_pts, impact_gf, impact_ga,
+        count_p, count_a
     ])
 
-metrics_cols = ['승점', '실점', '팀득점합계', '경기당 승점', '경기당 평균 실점', '경기당 팀 득점', '결장시 평균승점', '임팩트', '출석주차수', '결장주차수']
-df_players_all[metrics_cols] = df_players_all['Player'].apply(calculate_full_player_metrics)
+metrics_cols = [
+    '승점', '실점', '팀득점합계', 
+    '경기당 승점', '경기당 평균 실점', '경기당 팀 득점',
+    '결장시 평균승점', '결장시 평균실점', '결장시 평균팀득점',
+    '임팩트_승점', '임팩트_득점', '임팩트_실점',
+    '출석주차수', '결장주차수'
+]
+# 로직 간소화를 위해 명시적 컬럼 할당을 다시 합니다.
+def apply_metrics(df):
+    results = []
+    for player in df['Player']:
+        results.append(calculate_full_player_metrics(player))
+    new_cols = [
+        '승점', '실점', '팀득점합계',
+        '출전_평균승점', '출전_평균실점', '출전_평균팀득점',
+        '결장_평균승점', '결장_평균실점', '결장_평균팀득점',
+        '임팩트_승점', '임팩트_득점', '임팩트_실점',
+        '출석주차수', '결장주차수'
+    ]
+    # 위 Series가 16개를 반환하므로 필요한 것만 슬라이싱
+    res_df = pd.DataFrame(results).iloc[:, :14]
+    res_df.columns = new_cols
+    return res_df
+
+df_metrics = apply_metrics(df_players_all)
+df_players_all = pd.concat([df_players_all, df_metrics], axis=1)
 df_players_all['경기당 득점'] = df_players_all['득점'] / df_players_all['출석횟수'].replace(0, 1)
+
+# 중복 컬럼 제거 (합치면서 생길 수 있는)
+df_players_all = df_players_all.loc[:,~df_players_all.columns.duplicated()]
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["🏆 종합 순위", "🏃 개인 기록", "📈 트렌드 분석", "📊 선수 상세 데이터", "🌟 임팩트 분석"])
 
@@ -823,41 +864,63 @@ with tab4:
 # 탭 5: 임팩트 분석
 # ==========================================
 with tab5:
-    st.subheader("🌟 게임 체인저 (임팩트 분석 Top 10)")
-    st.caption("공식: (내가 출전했을 때의 팀 평균 승점) - (내가 결장했을 때의 팀 평균 승점)")
-    st.markdown("""
-    **임팩트 지표란?**  
-    이 선수가 경기에 나섰을 때 팀 성적이 얼마나 눈에 띄게 좋아졌는지를 보여주는 '진정한 영향력' 지표입니다. 
-    강팀 소속이 아니더라도, 이 수치가 높다면 당신은 팀을 승리 이끄는 **'진정한 게임 체인저'**입니다.
-    """)
+    st.subheader("🌟 임팩트 분석 (Game Changer)")
+    st.markdown("임팩트 = (내가 출전했을 때 팀 평균) - (내가 결장했을 때 팀 평균)")
     
-    # 임팩트 분석용 데이터 필터링 (최소 1회 이상 출전, 1회 이상 결장한 경우만 의미 있음)
-    df_impact = df_players_all[(df_players_all['출석주차수'] > 0) & (df_players_all['결장주차수'] > 0)].copy()
+    impact_data = df_players_all[(df_players_all['출석주차수'] > 0) & (df_players_all['결장주차수'] > 0)].copy()
     
-    if not df_impact.empty:
-        df_impact_top = df_impact.sort_values(by='임팩트', ascending=False).head(10).reset_index(drop=True)
-        df_impact_top.index += 1
-        
-        # 표시용 데이터 가공
-        df_impact_display = df_impact_top[['Player', '임팩트', '경기당 승점', '결장시 평균승점', 'Team']].copy()
-        df_impact_display['Team'] = df_impact_display['Team'].map(display_team_map)
-        
-        # 이름 변경
-        df_impact_display = df_impact_display.rename(columns={
-            'Player': '선수',
-            '임팩트': '🔥 임팩트',
-            '경기당 승점': '출전 시 승점(A)',
-            '결장시 평균승점': '결장 시 승점(B)',
-            'Team': '팀'
-        })
-        
-        # 소수점 포맷
-        cols_to_format = ['🔥 임팩트', '출전 시 승점(A)', '결장 시 승점(B)']
-        for col in cols_to_format:
-            df_impact_display[col] = df_impact_display[col].apply(lambda x: f'{x:+.2f}')
-            
-        st.markdown(df_to_html_table(df_impact_display), unsafe_allow_html=True)
-        
-        st.info("💡 **임팩트가 마이너스라면?** 내가 결장했을 때 팀 성적이 더 좋았다는 뜻으로, 분발이 필요하다는 재미있는 신호입니다! 😉")
+    if impact_data.empty:
+        st.warning("아직 분석을 위한 충분한 데이터(출전 및 결장 기록)가 쌓이지 않았습니다.")
     else:
-        st.write("아직 충분한 결장/출전 데이터가 쌓이지 않았습니다.")
+        # 공통 스타일 함수
+        def display_impact_rankings(df, target_col, title, is_ascending=False, value_suffix=""):
+            st.markdown(f"### {title}")
+            
+            # 1. 전체 랭킹 조회
+            top_n = 10
+            sorted_df = df.sort_values(by=target_col, ascending=is_ascending).head(top_n).reset_index(drop=True)
+            sorted_df.index += 1
+            
+            # 표시 컬럼 설정
+            disp_cols = ['Player', target_col, target_col.replace('임팩트', '출전_평균'), target_col.replace('임팩트', '결장_평균'), 'Team']
+            disp_df = sorted_df[disp_cols].copy()
+            disp_df['Team'] = disp_df['Team'].map(display_team_map)
+            
+            # 컬럼명 정리
+            col_map = {
+                'Player': '선수', 'Team': '팀',
+                target_col: '🔥 임팩트',
+                target_col.replace('임팩트', '출전_평균'): '출전 시(A)',
+                target_col.replace('임팩트', '결장_평균'): '결장 시(B)'
+            }
+            disp_df = disp_df.rename(columns=col_map)
+            
+            # 포맷팅
+            format_cols = ['🔥 임팩트', '출전 시(A)', '결장 시(B)']
+            for c in format_cols:
+                disp_df[c] = disp_df[c].apply(lambda x: f'{x:+.2f}{value_suffix}')
+            
+            st.markdown(f"**전체 순위**")
+            st.markdown(df_to_html_table(disp_df), unsafe_allow_html=True)
+            
+            # 2. 팀별 랭킹 (Top 5)
+            st.markdown(f"**팀별 순위 (Top 5)**")
+            t_cols = st.columns(len(all_teams_raw))
+            for i, t_raw in enumerate(all_teams_raw):
+                with t_cols[i]:
+                    st.markdown(f"**{display_team_map.get(t_raw)}**")
+                    t_df = df[df['Team'] == t_raw].sort_values(by=target_col, ascending=is_ascending).head(5).reset_index(drop=True)
+                    t_df.index += 1
+                    t_disp = t_df[['Player', target_col]].rename(columns={'Player': '선수', target_col: '임팩트'})
+                    t_disp['임팩트'] = t_disp['임팩트'].apply(lambda x: f'{x:+.2f}')
+                    st.markdown(df_to_html_table(t_disp), unsafe_allow_html=True)
+            st.markdown("---")
+
+        # 1. 승점 임팩트
+        display_impact_rankings(impact_data, '임팩트_승점', "🏆 승점 임팩트 (승리 유전자)")
+        
+        # 2. 득점 임팩트
+        display_impact_rankings(impact_data, '임팩트_득점', "⚽ 득점 임팩트 (공격의 핵)")
+        
+        # 3. 실점 임팩트 (Bottom 10/5)
+        display_impact_rankings(impact_data, '임팩트_실점', "🛡️ 실점 임팩트 (통곡의 벽)", is_ascending=True)
