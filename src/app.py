@@ -535,7 +535,7 @@ with tab2:
     
     st.subheader("⚡ 가성비 스트라이커 (Top 10)")
     st.caption("공식: 득점 / 출석 횟수")
-    df_eff_striker = df_players_all[df_players_all['AttendanceCount'] > 0].sort_values(by='GoalsPerAtt', ascending=False).head(10).reset_index(drop=True)
+    df_eff_striker = df_players_all[df_players_all['AttendanceCount'] > 0].sort_values(by=['GoalsPerAtt', 'Goals'], ascending=[False, False]).head(10).reset_index(drop=True)
     df_eff_striker.index += 1
     # 표시용 데이터
     df_eff_display = df_eff_striker[['Player', 'GoalsPerAtt', 'Goals', 'AttendanceCount', 'Team']].copy()
