@@ -3,25 +3,27 @@ import os
 import streamlit as st
 
 def load_data_from_url():
-    """공개된 Google Sheets URL에서 데이터를 읽어옵니다. (원본 텍스트 유지 방식)"""
+    """공개된 Google Sheets URL에서 데이터를 읽어옵니다. (시트 이름 지정 방식)"""
     try:
         base_url = st.secrets["google_sheets"]["spreadsheet_url"]
-        # gviz 대신 원본 export 방식을 사용하여 데이터 유실 방지
-        # gid=0은 첫 번째 시트를 의미하지만, 시트 이름으로 가져오는 것이 더 안정적
-        match_url = f"{base_url.split('/edit')[0]}/export?format=csv&sheet=match_result"
-        att_url = f"{base_url.split('/edit')[0]}/export?format=csv&sheet=attendance"
+        # export 대신 gviz/tq를 사용해야 &sheet= 이름 파라미터가 정확히 작동합니다.
+        match_url = f"{base_url.split('/edit')[0]}/gviz/tq?tqx=out:csv&sheet=match_result"
+        att_url = f"{base_url.split('/edit')[0]}/gviz/tq?tqx=out:csv&sheet=attendance"
         
-        # 모든 데이터를 문자열로 로드
+        # dtype=str을 사용하여 숫자가 먼저 나와도 텍스트(선수 이름)가 유실되지 않게 함
         df_match = pd.read_csv(match_url, dtype=str)
         df_att = pd.read_csv(att_url, dtype=str)
         
-        # 결측값 및 주차 정보 정제
-        df_match = df_match.fillna('').replace('nan', '')
-        df_att = df_att.fillna('').replace('nan', '')
+        # 결측값 채우기 및 문자열 공백 제거
+        df_match = df_match.fillna('').astype(str).apply(lambda x: x.str.strip())
+        df_att = df_att.fillna('').astype(str).apply(lambda x: x.str.strip())
         
-        # '주차' 컬럼이 비어있는 행 제거
-        if not df_match.empty and '주차' in df_match.columns:
-            df_match = df_match[df_match['주차'].str.strip() != ''].reset_index(drop=True)
+        # '주차' 컬럼이 있는지 확인 후 행 정제
+        if not df_match.empty:
+            # 컬럼명에 공백이 있을 수 있으니 스트립 처리
+            df_match.columns = [c.strip() for c in df_match.columns]
+            if '주차' in df_match.columns:
+                df_match = df_match[df_match['주차'] != ''].reset_index(drop=True)
             
         return df_match, df_att
     except Exception as e:
