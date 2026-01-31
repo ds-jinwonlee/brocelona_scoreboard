@@ -14,12 +14,12 @@ def df_to_html_table(df, center_align=True, match_result=False):
     Args:
         df: pandas DataFrame
         center_align: True면 모든 셀 중앙 정렬, False면 왼쪽 정렬
-        match_result: True면 경기 결과 테이블 (헤더만 중앙, 값은 왼쪽)
+        match_result: True면 경기 결과 테이블 (텍스트 중앙 정렬)
     """
     # 스타일 설정
     if match_result:
-        # 경기 결과: 헤더는 중앙, 값은 왼쪽
-        cell_style = 'text-align: left; padding: 8px 12px;'
+        # 경기 결과: 모두 중앙 정렬
+        cell_style = 'text-align: center; padding: 8px 12px;'
         header_style = 'text-align: center; padding: 8px 12px; font-weight: 700; background-color: #dee2e6;'
     elif center_align:
         # 일반 테이블: 모두 중앙
@@ -30,14 +30,28 @@ def df_to_html_table(df, center_align=True, match_result=False):
         cell_style = 'text-align: left; padding: 8px 12px;'
         header_style = 'text-align: left; padding: 8px 12px; font-weight: 700; background-color: #dee2e6;'
     
-    # HTML 테이블 생성 (모바일용 가로 스크롤 컨테이너 포함)
-    html = '<div class="table-container">'
-    html += '<table style="width: 100%; border-collapse: collapse; color: #212529;">'
+    # HTML 테이블 생성
+    table_class = "match-result-table" if match_result else "standard-table"
+    html = f'<div class="table-container">'
+    html += f'<table class="{table_class}" style="width: 100%; border-collapse: collapse; color: #212529; table-layout: fixed;">'
     
+    # 경기 결과 테이블의 경우 각 컬럼 너비 강제 고정
+    if match_result:
+        col_count = len(df.columns)
+        # 인덱스(라운드)는 80px, 나머지는 균등 분할
+        html += '<colgroup>'
+        html += '<col style="width: 80px;">'
+        for _ in range(col_count):
+            html += f'<col style="width: calc((100% - 80px) / {col_count});">'
+        html += '</colgroup>'
+
     # 헤더
     html += '<thead><tr>'
     if df.index.name or not all(isinstance(i, int) for i in df.index):
+        # 라운드(인덱스) 컬럼 스타일
         html += f'<th style="{header_style}">{df.index.name if df.index.name else ""}</th>'
+    
+    # 데이터 컬럼
     for col in df.columns:
         html += f'<th style="{header_style}">{col}</th>'
     html += '</tr></thead>'
@@ -179,19 +193,25 @@ st.markdown("""
         text-align: center !important;
     }
     
-    /* 컬럼 너비 자동 조정 */
+    /* 컬럼 너비 설정 */
     table {
-        table-layout: auto !important;
+        table-layout: auto;
     }
     
-    th, td {
-        width: auto !important;
-        max-width: fit-content !important;
+    .match-result-table {
+        table-layout: fixed !important;
+        width: 100% !important;
     }
     
-    /* Expander 내부 테이블 - 경기 결과용 (값은 왼쪽 정렬) */
+    /* 경기 결과 테이블 내의 셀 텍스트 줄바꿈 허용 */
+    .match-result-table td {
+        word-break: break-all !important;
+        white-space: normal !important;
+    }
+    
+    /* Expander 내부 테이블 - 경기 결과용 (중앙 정렬) */
     details table td {
-        text-align: left !important;
+        text-align: center !important;
     }
     
     details table th {
