@@ -382,7 +382,7 @@ metrics_df.columns = [
 df_players_all = pd.concat([df_players_base, metrics_df], axis=1)
 df_players_all['경기당 득점'] = (df_players_all['득점'] / df_players_all['출석횟수'].replace(0, 1)).fillna(0)
 
-tab1, tab2, tab5, tab3, tab4 = st.tabs(["🏆 종합 순위", "🏃 개인 기록", "🌟 개인 임팩트", "📈 팀 트렌드", "📊 개인 상세"])
+tab1, tab2, tab5, tab3, tab4, tab6 = st.tabs(["🏆 종합 순위", "🏃 개인 기록", "🌟 개인 임팩트", "📈 팀 트렌드", "📊 개인 상세", "📅 주차별 출석표"])
 
 # ==========================================
 # 탭 1: 종합 순위
@@ -1015,3 +1015,76 @@ with tab5:
         
         # 3. 실점 임팩트 (Bottom 10/5)
         display_impact_rankings(impact_data, '임팩트_실점', "🛡️ 실점 임팩트 (통곡의 벽)", "골문 최후의 보루! 내가 수비 중심을 잡으면 상대 팀의 득점 확률이 눈에 띄게 줄어듭니다.", is_ascending=True)
+
+
+# ==========================================
+# 탭 6: 주차별 출석표
+# ==========================================
+with tab6:
+    st.subheader("📅 주차별 출석표")
+    st.markdown("전체 선수의 주차별 출석 현황입니다. (✅: 출석, ❌: 결장)")
+    
+    # 주차 컬럼들 추출 (컬럼명에 '주차'가 포함된 것들)
+    week_cols = [c for c in df_att.columns if '주차' in c]
+    # 주차 숫자로 정렬 (1주차, 2주차, ..., 10주차 순서 보장)
+    import re
+    def extract_week_num(col_name):
+        match = re.search(r'(\d+)', col_name)
+        return int(match.group(1)) if match else 999
+    
+    week_cols = sorted(week_cols, key=extract_week_num)
+    
+    # 출석 인정 기준 값들
+    POSITIVE_VALS = ['1', '1.0', 'o', 'O', 'v', 'V', '참석', '출석', 'true', 'True']
+    NEGATIVE_VALS = ['0', '0.0', 'x', 'X', '불참', '결장', 'false', 'False']
+    
+    for t_raw in all_teams_raw:
+        display_name = display_team_map.get(t_raw, t_raw)
+        st.markdown(f"### {display_name}")
+        
+        # 해당 팀 데이터 필터링 (팀이름이 다를 수 있으므로 포함 여부로 체크하거나 strip)
+        df_team_att = df_att[df_att['팀이름'].str.strip() == t_raw.strip()].copy()
+        
+        if df_team_att.empty:
+            # 혹시나 팀명이 정확히 안 맞을 경우를 대비해 키워드 검색
+            short_keyword = '레드' if '레드' in t_raw else '블루' if '블루' in t_raw else '옐로' if '옐로' in t_raw else t_raw
+            df_team_att = df_att[df_att['팀이름'].str.contains(short_keyword)].copy()
+            
+        if df_team_att.empty:
+            st.info(f"{display_name} 팀의 출석 데이터가 없습니다.")
+            continue
+            
+        # 출석 데이터 시각화 보정
+        plot_df = df_team_att.copy()
+        
+        # 누적 출석 횟수 계산 함수
+        def is_attended(val):
+            v = str(val).strip().lower()
+            if v in [pv.lower() for pv in POSITIVE_VALS]: return True
+            try:
+                if float(v) > 0: return True
+            except: pass
+            return False
+
+        # 각 행(선수)별로 누적 출석 계산
+        plot_df['누적 출석'] = df_team_att[week_cols].apply(lambda row: sum(is_attended(v) for v in row), axis=1)
+        
+        for col in week_cols:
+            def format_att(val):
+                if is_attended(val):
+                    return '✅'
+                v = str(val).strip().lower()
+                if v in [nv.lower() for nv in NEGATIVE_VALS]:
+                    return '❌'
+                if v == '' or v == 'nan':
+                    return '-'
+                return '❌' if v.isdigit() else v
+
+            plot_df[col] = plot_df[col].apply(format_att)
+        
+        # 표시할 컬럼 (선수이름 + 누적 출석 + 모든 주차)
+        display_cols = ['선수이름', '누적 출석'] + [c for c in week_cols if c in plot_df.columns]
+        
+        # 테이블 출력
+        st.markdown(df_to_html_table(plot_df[display_cols].reset_index(drop=True)), unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
