@@ -559,7 +559,7 @@ with tab2:
     display_personal_rankings(
         df_players_all, 
         sort_col='득점', 
-        title="👟 Golden Boot (득점왕)", 
+        title="👟 Golden Boot (Top 10)", 
         caption="리그 최고의 득점 기계! 가장 많은 골을 터뜨린 주인공입니다.",
         rename_map={'Player': '선수', 'Team': '팀', '득점': '득점'},
         display_cols=['Player', '득점', 'Team']
@@ -569,7 +569,7 @@ with tab2:
     display_personal_rankings(
         df_players_all, 
         sort_col='출석횟수', 
-        title="🦸 아이언 맨 (출석왕)", 
+        title="🦸 아이언 맨 (Top 10)", 
         caption="리그의 기둥! 성실함의 상징, 철의 체력으로 모든 경기를 함께합니다.",
         rename_map={'Player': '선수', 'Team': '팀', '출석횟수': '출석횟수'},
         display_cols=['Player', '출석횟수', 'Team']
