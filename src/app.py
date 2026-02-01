@@ -522,7 +522,7 @@ with tab1:
                         else:
                             status_html = "<div style='color: #212529; font-weight: 400; font-size: 1.1em;'>패</div>"
                             
-                        result_detail_html = f"<div style='margin-top: 4px; font-weight: 500;'>{my_goals}골<span style='font-size: 0.85em; color: #6c757d;'>{scorers_text}</span></div>"
+                        result_detail_html = f"<div style='margin-top: 4px; font-weight: 500;'>{my_goals}득점<span style='font-size: 0.85em; color: #6c757d;'>{scorers_text}</span></div>"
                         
                         res_row[short_name] = f"<div>{status_html}{result_detail_html}</div>"
                     else:
@@ -584,7 +584,7 @@ with tab2:
         df_players_all, 
         sort_col='득점', 
         title="👟 Golden Boot (Top 10)", 
-        caption="리그 최고의 득점 기계! 가장 많은 골을 터뜨린 주인공입니다.",
+        caption="리그 최고의 득점 기계! 가장 많은 득점을 기록한 주인공입니다.",
         rename_map={'Player': '선수', 'Team': '팀', '득점': '득점'},
         display_cols=['Player', '득점', 'Team']
     )
@@ -1081,7 +1081,7 @@ with tab5:
         display_impact_rankings(impact_data, '임팩트_승점', "🏆 승점 임팩트 (승리 유전자)", "진정한 승리 전문가! 내가 경기에 나서는 것만으로도 팀의 승점 기대치가 이만큼 상승합니다.")
         
         # 2. 득점 임팩트
-        display_impact_rankings(impact_data, '임팩트_득점', "⚽ 득점 임팩트 (공격의 핵)", "팀 화력의 기폭제! 내가 그라운드에 있을 때 우리 팀은 더 많은 골을 터뜨리게 됩니다.")
+        display_impact_rankings(impact_data, '임팩트_득점', "⚽ 득점 임팩트 (공격의 핵)", "팀 화력의 기폭제! 내가 그라운드에 있을 때 우리 팀은 더 많은 득점을 기록하게 됩니다.")
         
         # 3. 실점 임팩트 (Bottom 10/5)
         display_impact_rankings(impact_data, '임팩트_실점', "🛡️ 실점 임팩트 (통곡의 벽)", "골문 최후의 보루! 내가 수비 중심을 잡으면 상대 팀의 득점 확률이 눈에 띄게 줄어듭니다.", is_ascending=True)
