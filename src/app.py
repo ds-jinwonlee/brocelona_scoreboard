@@ -500,14 +500,21 @@ with tab1:
                         opp_scores = [v for k, v in team_scores.items() if k != team and v is not None]
                         max_opp = max(opp_scores) if opp_scores else 0
                         
-                        scorers_text = f" ({', '.join(my_scorers)})" if my_scorers else ""
+                        # 득점자 명단 가공
+                        scorers_html = f"<div style='font-size: 0.85em; color: #6c757d; margin-top: 4px; line-height: 1.2;'>{', '.join(my_scorers)}</div>" if my_scorers else ""
                         
+                        # 승패 결과에 따른 배지 및 색상 설정
                         if my_goals > max_opp:
-                            res_row[short_name] = f"승{scorers_text}"
+                            status_html = "<span style='color: #d63384; font-weight: 800;'>승</span>"
+                            score_html = f"<div style='font-weight: 700; margin-top: 2px;'>{my_goals}골</div>"
                         elif my_goals == max_opp:
-                            res_row[short_name] = f"무{scorers_text}" if my_goals > 0 else "무"
+                            status_html = "<span style='color: #6c757d; font-weight: 800;'>무</span>"
+                            score_html = f"<div style='font-weight: 700; margin-top: 2px;'>{my_goals}골</div>"
                         else:
-                            res_row[short_name] = f"패{scorers_text}" if my_scorers else "패"
+                            status_html = "<span style='color: #212529; font-weight: 400;'>패</span>"
+                            score_html = f"<div style='font-weight: 700; margin-top: 2px;'>{my_goals}골</div>"
+                        
+                        res_row[short_name] = f"<div>{status_html}{score_html}{scorers_html}</div>"
                     else:
                         res_row[short_name] = '-'
                 
