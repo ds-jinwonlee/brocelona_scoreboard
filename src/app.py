@@ -1090,6 +1090,52 @@ with tab6:
     # 출석 인정 기준 값들
     POSITIVE_VALS = ['1', '1.0', 'o', 'O', 'v', 'V', '참석', '출석', 'true', 'True']
     NEGATIVE_VALS = ['0', '0.0', 'x', 'X', '불참', '결장', 'false', 'False']
+
+    def is_attended_val(val):
+        v = str(val).strip().lower()
+        if v in [pv.lower() for pv in POSITIVE_VALS]: return True
+        try:
+            if float(v) > 0: return True
+        except: pass
+        return False
+
+    # --- 팀별 출석률 요약 (최상단) ---
+    st.markdown("### 📊 팀별 출석률 요약")
+    team_att_summary = []
+    
+    for t_raw in all_teams_raw:
+        display_name = display_team_map.get(t_raw, t_raw)
+        df_team_att_raw = df_att[df_att['팀이름'].str.strip() == t_raw.strip()].copy()
+        
+        if df_team_att_raw.empty:
+            short_keyword = '레드' if '레드' in t_raw else '블루' if '블루' in t_raw else '옐로' if '옐로' in t_raw else t_raw
+            df_team_att_raw = df_att[df_att['팀이름'].str.contains(short_keyword)].copy()
+        
+        if df_team_att_raw.empty: continue
+        
+        total_players = len(df_team_att_raw)
+        row_data = {'팀이름': display_name}
+        week_rates = []
+        
+        for col in week_cols:
+            attended_count = df_team_att_raw[col].apply(is_attended_val).sum()
+            rate = (attended_count / total_players * 100) if total_players > 0 else 0
+            row_data[col] = f"{rate:.2f}%"
+            week_rates.append(rate)
+            
+        avg_rate = sum(week_rates) / len(week_rates) if week_rates else 0
+        row_data['평균출석률'] = f"{avg_rate:.2f}%"
+        team_att_summary.append(row_data)
+        
+    if team_att_summary:
+        df_summary = pd.DataFrame(team_att_summary)
+        # 컬럼 순서 조정: 팀이름, 평균출석률, 1주차, 2주차...
+        summary_cols = ['팀이름', '평균출석률'] + week_cols
+        st.markdown(df_to_html_table(df_summary[summary_cols]), unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+
+    st.markdown("---")
+    st.markdown("### 📋 팀별 상세 출석부")
     
     for t_raw in all_teams_raw:
         display_name = display_team_map.get(t_raw, t_raw)
@@ -1112,12 +1158,7 @@ with tab6:
         
         # 누적 출석 횟수 계산 함수
         def is_attended(val):
-            v = str(val).strip().lower()
-            if v in [pv.lower() for pv in POSITIVE_VALS]: return True
-            try:
-                if float(v) > 0: return True
-            except: pass
-            return False
+            return is_attended_val(val)
 
         # 각 행(선수)별로 출석률 및 횟수 계산
         total_weeks = len(week_cols)
