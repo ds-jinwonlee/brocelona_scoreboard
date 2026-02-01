@@ -32,8 +32,10 @@ def df_to_html_table(df, center_align=True, match_result=False):
     
     # HTML 테이블 생성
     table_class = "match-result-table" if match_result else "standard-table"
+    layout_style = "table-layout: fixed;" if match_result else "table-layout: auto;"
+    
     html = f'<div class="table-container">'
-    html += f'<table class="{table_class}" style="width: 100%; border-collapse: collapse; color: #212529; table-layout: fixed;">'
+    html += f'<table class="{table_class}" style="width: 100%; border-collapse: collapse; color: #212529; {layout_style}">'
     
     # 경기 결과 테이블의 경우 각 컬럼 너비 강제 고정
     if match_result:
@@ -162,9 +164,33 @@ st.markdown("""
         color: #212529 !important;
         background-color: #ffffff !important;
         width: 100% !important;
-        min-width: 400px; /* 너무 쪼그라들지 않게 */
+        min-width: auto; /* 고정값 대신 내용에 맞게 */
         border-collapse: collapse;
         font-size: 14px;
+    }
+    
+    /* 컬럼이 많은 표준 테이블은 모바일에서 압축되지 않도록 최소 너비 보장 */
+    @media (max-width: 768px) {
+        .standard-table {
+            min-width: 1000px !important; /* 컬럼이 13개이므로 더 넉넉하게 */
+        }
+        
+        .match-result-table {
+            min-width: 600px !important; /* 경기 결과 테이블도 최소 너비 확보 */
+        }
+        
+        .standard-table td {
+            white-space: nowrap !important;
+        }
+        
+        .table-container::after {
+            content: '↔ 옆으로 드래그하여 더 보기';
+            display: block;
+            font-size: 11px;
+            color: #6c757d;
+            text-align: right;
+            margin-top: 5px;
+        }
     }
     
     /* 테이블 헤더 - 굵게, 가운데 정렬 */
@@ -175,7 +201,7 @@ st.markdown("""
         text-align: center !important;
         padding: 10px 6px !important;
         border: 1px solid #dee2e6 !important;
-        white-space: nowrap;
+        white-space: nowrap !important; /* 헤더 텍스트가 줄바꿈되어 찌그러지는 것 방지 */
     }
     
     /* 테이블 데이터 셀 - 가운데 정렬 */
