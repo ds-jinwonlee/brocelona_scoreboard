@@ -1139,5 +1139,5 @@ with tab6:
         display_cols = ['선수이름', '누적 출석'] + [c for c in week_cols if c in plot_df.columns]
         
         # 테이블 출력
-        st.markdown(df_to_html_table(plot_df[display_cols].reset_index(drop=True), scrollable=True), unsafe_allow_html=True)
+        st.markdown(df_to_html_table(plot_df[display_cols].reset_index(drop=True)), unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
