@@ -1119,14 +1119,14 @@ with tab6:
             except: pass
             return False
 
-        # 각 행(선수)별로 누적 출석 및 비율 계산
+        # 각 행(선수)별로 출석률 및 횟수 계산
         total_weeks = len(week_cols)
         def format_cumulative(row):
             count = sum(is_attended(v) for v in row)
             percentage = (count / total_weeks * 100) if total_weeks > 0 else 0
-            return f"{count}({percentage:.2f}%)"
+            return f"{percentage:.2f}%({count})"
             
-        plot_df['누적 출석'] = df_team_att[week_cols].apply(format_cumulative, axis=1)
+        plot_df['출석률(출석횟수)'] = df_team_att[week_cols].apply(format_cumulative, axis=1)
         
         for col in week_cols:
             def format_att(val):
@@ -1141,8 +1141,8 @@ with tab6:
 
             plot_df[col] = plot_df[col].apply(format_att)
         
-        # 표시할 컬럼 (선수이름 + 누적 출석 + 모든 주차)
-        display_cols = ['선수이름', '누적 출석'] + [c for c in week_cols if c in plot_df.columns]
+        # 표시할 컬럼 (선수이름 + 출석률(출석횟수) + 모든 주차)
+        display_cols = ['선수이름', '출석률(출석횟수)'] + [c for c in week_cols if c in plot_df.columns]
         
         # 테이블 출력
         st.markdown(df_to_html_table(plot_df[display_cols].reset_index(drop=True)), unsafe_allow_html=True)
