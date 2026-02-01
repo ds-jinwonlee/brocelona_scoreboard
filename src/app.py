@@ -7,7 +7,7 @@ from utils.data_loader import load_data, process_match_results, process_attendan
 
 
 # 헬퍼 함수: DataFrame을 중앙 정렬된 HTML 테이블로 변환
-def df_to_html_table(df, center_align=True, match_result=False):
+def df_to_html_table(df, center_align=True, match_result=False, scrollable=False):
     """
     DataFrame을 HTML 테이블로 변환
     
@@ -15,6 +15,7 @@ def df_to_html_table(df, center_align=True, match_result=False):
         df: pandas DataFrame
         center_align: True면 모든 셀 중앙 정렬, False면 왼쪽 정렬
         match_result: True면 경기 결과 테이블 (텍스트 중앙 정렬)
+        scrollable: True면 모바일에서 가로 스크롤을 위해 최소 너비 확보
     """
     # 스타일 설정
     if match_result:
@@ -31,11 +32,15 @@ def df_to_html_table(df, center_align=True, match_result=False):
         header_style = 'text-align: left; padding: 8px 12px; font-weight: 700; background-color: #dee2e6;'
     
     # HTML 테이블 생성
-    table_class = "match-result-table" if match_result else "standard-table"
+    table_classes = ["match-result-table" if match_result else "standard-table"]
+    if scrollable:
+        table_classes.append("scrollable-table")
+    
+    table_class_str = " ".join(table_classes)
     layout_style = "table-layout: fixed;" if match_result else "table-layout: auto;"
     
     html = f'<div class="table-container">'
-    html += f'<table class="{table_class}" style="width: 100%; border-collapse: collapse; color: #212529; {layout_style}">'
+    html += f'<table class="{table_class_str}" style="width: 100%; border-collapse: collapse; color: #212529; {layout_style}">'
     
     # 경기 결과 테이블의 경우 각 컬럼 너비 강제 고정
     if match_result:
@@ -169,27 +174,29 @@ st.markdown("""
         font-size: 14px;
     }
     
-    /* 컬럼이 많은 표준 테이블은 모바일에서 압축되지 않도록 최소 너비 보장 */
+    /* 모바일 가로 스크롤이 필요한 특정 테이블만 최소 너비 보장 */
     @media (max-width: 768px) {
-        .standard-table {
-            min-width: 1000px !important; /* 컬럼이 13개이므로 더 넉넉하게 */
+        .scrollable-table {
+            min-width: 1000px !important;
         }
         
-        .match-result-table {
-            min-width: 600px !important; /* 경기 결과 테이블도 최소 너비 확보 */
-        }
-        
-        .standard-table td {
+        .scrollable-table td {
             white-space: nowrap !important;
         }
         
-        .table-container::after {
+        /* 스크롤 가능한 테이블 뒤에만 안내 문구 표시 */
+        .table-container:has(.scrollable-table)::after {
             content: '↔ 옆으로 드래그하여 더 보기';
             display: block;
             font-size: 11px;
             color: #6c757d;
             text-align: right;
             margin-top: 5px;
+        }
+
+        /* 일반 테이블은 화면에 맞게 폰트 크기 조정 가능 */
+        .standard-table {
+            font-size: 12px !important;
         }
     }
     
@@ -201,7 +208,7 @@ st.markdown("""
         text-align: center !important;
         padding: 10px 6px !important;
         border: 1px solid #dee2e6 !important;
-        white-space: nowrap !important; /* 헤더 텍스트가 줄바꿈되어 찌그러지는 것 방지 */
+        white-space: nowrap; /* 줄바꿈은 기본적으로 방지하되 전체 nowrap은 피함 */
     }
     
     /* 테이블 데이터 셀 - 가운데 정렬 */
@@ -978,7 +985,7 @@ with tab4:
         if 'Team' in df_team_players.columns:
             df_team_players['Team'] = df_team_players['Team'].map(team_short_map)
 
-        st.markdown(df_to_html_table(df_team_players[display_cols].sort_values(by='🦸 아이언맨(출석)', ascending=False).reset_index(drop=True)), unsafe_allow_html=True)
+        st.markdown(df_to_html_table(df_team_players[display_cols].sort_values(by='🦸 아이언맨(출석)', ascending=False).reset_index(drop=True), scrollable=True), unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
 # ==========================================
 # 탭 5: 임팩트 분석
@@ -1132,5 +1139,5 @@ with tab6:
         display_cols = ['선수이름', '누적 출석'] + [c for c in week_cols if c in plot_df.columns]
         
         # 테이블 출력
-        st.markdown(df_to_html_table(plot_df[display_cols].reset_index(drop=True)), unsafe_allow_html=True)
+        st.markdown(df_to_html_table(plot_df[display_cols].reset_index(drop=True), scrollable=True), unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
