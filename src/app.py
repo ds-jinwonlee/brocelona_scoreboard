@@ -1120,7 +1120,7 @@ with tab6:
         for col in week_cols:
             attended_count = df_team_att_raw[col].apply(is_attended_val).sum()
             rate = (attended_count / total_players * 100) if total_players > 0 else 0
-            row_data[col] = f"{rate:.2f}%"
+            row_data[col] = f"{rate:.2f}% ({attended_count}/{total_players})"
             week_rates.append(rate)
             
         avg_rate = sum(week_rates) / len(week_rates) if week_rates else 0
