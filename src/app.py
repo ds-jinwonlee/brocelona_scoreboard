@@ -1119,8 +1119,14 @@ with tab6:
             except: pass
             return False
 
-        # 각 행(선수)별로 누적 출석 계산
-        plot_df['누적 출석'] = df_team_att[week_cols].apply(lambda row: sum(is_attended(v) for v in row), axis=1)
+        # 각 행(선수)별로 누적 출석 및 비율 계산
+        total_weeks = len(week_cols)
+        def format_cumulative(row):
+            count = sum(is_attended(v) for v in row)
+            percentage = (count / total_weeks * 100) if total_weeks > 0 else 0
+            return f"{count}({percentage:.2f}%)"
+            
+        plot_df['누적 출석'] = df_team_att[week_cols].apply(format_cumulative, axis=1)
         
         for col in week_cols:
             def format_att(val):
