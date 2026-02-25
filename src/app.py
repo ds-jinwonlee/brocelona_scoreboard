@@ -473,6 +473,39 @@ with tab1:
         with st.expander(f"**{week}주차 경기 결과**", expanded=(week == df_match_display['주차'].max())):
             week_data = df_match_display[df_match_display['주차'] == week].copy()
             
+            # --- 주차별 성적 요약 표 추가 ---
+            week_summary_list = []
+            for team in all_teams_raw:
+                team_history = df_history[(df_history['Week'] == week) & (df_history['Team'] == team)]
+                if team_history.empty:
+                    continue
+                
+                wins = len(team_history[team_history['PointsGained'] == 3])
+                draws = len(team_history[team_history['PointsGained'] == 1])
+                losses = len(team_history[team_history['PointsGained'] == 0])
+                points = team_history['PointsGained'].sum()
+                
+                # 득점/실점 (미리 계산된 데이터 활용)
+                gf_val = df_weekly_gf[(df_weekly_gf['Week'] == week) & (df_weekly_gf['Team'] == team)]['GF'].sum()
+                ga_val = df_weekly_ga[(df_weekly_ga['Week'] == week) & (df_weekly_ga['Team'] == team)]['GA'].sum()
+                
+                week_summary_list.append({
+                    '팀': team_short_map.get(team, team),
+                    '승점': int(points),
+                    '승': wins,
+                    '무': draws,
+                    '패': losses,
+                    '득점': int(gf_val),
+                    '실점': int(ga_val),
+                    '득실차': int(gf_val - ga_val)
+                })
+            
+            if week_summary_list:
+                df_week_summary = pd.DataFrame(week_summary_list)
+                st.markdown("#### 📊 주차별 성적 요약")
+                st.markdown(df_to_html_table(df_week_summary), unsafe_allow_html=True)
+                st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
+            
             # 각 라운드별 처리하여 승/무/패 표시
             formatted_data = []
             for _, row in week_data.iterrows():
