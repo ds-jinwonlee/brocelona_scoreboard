@@ -91,7 +91,7 @@ def get_scorers_list(scorer_str):
     s_str = str(scorer_str).strip()
     if s_str in ['0', '0.0', '']: return []
     scorers = [s.strip() for s in s_str.split(',')]
-    return [s for s in scorers if s and '자살골' not in s and s not in ['0', '0.0']]
+    return [s for s in scorers if s and '자살골' not in s and '몰수승' not in s and s not in ['0', '0.0']]
 
 def process_match_results(df_match):
     """경기 결과 분석 (풀네임 대응)"""
@@ -132,7 +132,7 @@ def process_match_results(df_match):
             
             # 선수 득점 누적 (자살골 제외 리스트 사용)
             for p in get_scorers_list(row[team]):
-                player_stats[p] = player_stats.get(p, 0) + 1
+                player_stats[(p, team)] = player_stats.get((p, team), 0) + 1
             
             # 승무패 및 실점 판별
             opponents = [scores[t] for t in participating if t != team]
@@ -161,7 +161,8 @@ def process_match_results(df_match):
     df_teams = df_teams.sort_values(by=['Points', 'GD', 'GF'], ascending=False).reset_index(drop=True)
     df_teams.index += 1
     
-    return df_teams, pd.DataFrame(history_records), pd.DataFrame(list(player_stats.items()), columns=['Player', 'Goals'])
+    scorers_list = [{'Player': k[0], 'Team': k[1], 'Goals': v} for k, v in player_stats.items()]
+    return df_teams, pd.DataFrame(history_records), pd.DataFrame(scorers_list)
 
 def process_attendance(df_att):
     """출석 데이터 분석 (원본 이름 유지)"""
@@ -179,6 +180,7 @@ def process_attendance(df_att):
             if str(val).strip() != '': return 1
         return 0
         
+    df_melt['IsRostered'] = df_melt['Attended'].apply(lambda v: str(v).strip() != '')
     df_melt['IsAttended'] = df_melt['Attended'].apply(check_att)
     df_melt['WeekNum'] = df_melt['WeekName'].str.extract(r'(\d+)').astype(int)
     return df_melt

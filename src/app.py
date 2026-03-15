@@ -366,44 +366,47 @@ for w in df_match['주차'].unique():
 df_weekly_ga = pd.DataFrame(weekly_ga_temp)
 
 # --- 모든 선수 지표 통합 계산 (임팩트 포함) ---
-# 1. 선수-팀 매핑 정보 확보
-player_team_map = df_att[['선수이름', '팀이름']].drop_duplicates().set_index('선수이름')['팀이름'].to_dict()
+# 1. 선수-팀별 유효 Roster 주차 및 출석 데이터 확보
+# Rostered된 주차만 필터링 (df_att 데이터 중 유효한 기록)
+rostered_df = df_att_processed[df_att_processed['IsRostered']]
 
-# 2. 기초 데이터 병합 (출석 + 득점)
-att_counts = df_att_processed[df_att_processed['IsAttended'] == 1].groupby('선수이름')['WeekNum'].count().reset_index(name='출석횟수')
-df_players_base = pd.merge(att_counts, df_scorers.rename(columns={'Goals': '득점'}), left_on='선수이름', right_on='Player', how='outer').fillna(0)
-df_players_base['Player'] = df_players_base.apply(lambda x: x['선수이름'] if pd.notna(x['선수이름']) and x['선수이름'] != 0 else x['Player'], axis=1)
-df_players_base['Team'] = df_players_base['Player'].map(player_team_map)
+# 선수-팀별 출석 횟수 계산
+att_counts = rostered_df[rostered_df['IsAttended'] == 1].groupby(['선수이름', '팀이름'])['WeekNum'].count().reset_index(name='출석횟수')
+att_counts = att_counts.rename(columns={'선수이름': 'Player', '팀이름': 'Team'})
+
+# df_scorers에도 득점자별 소속팀(Team)이 추가됨. 병합 (Outer)
+df_players_base = pd.merge(att_counts, df_scorers.rename(columns={'Goals': '득점'}), on=['Player', 'Team'], how='outer').fillna(0)
 df_players_base = df_players_base[['Player', 'Team', '출석횟수', '득점']].reset_index(drop=True)
 
 # 3. 상세 지표 계산 함수
-def calculate_full_player_metrics(player_name):
-    # 항상 14개의 요소를 반환해야 함 (순서 중요)
+def calculate_full_player_metrics(player_name, team_name):
     default_vals = [0.0] * 14
     
-    my_team = player_team_map.get(player_name)
-    att_rows = df_att_processed[(df_att_processed['선수이름'] == player_name) & (df_att_processed['IsAttended'] == 1)]
+    # 해당 선수가 "해당 팀"에 소속되었던 주차들만 대상으로 계산 (팀 이동 반영)
+    rostered_weeks_df = rostered_df[(rostered_df['선수이름'] == player_name) & (rostered_df['팀이름'] == team_name)]
     
-    if att_rows.empty or not my_team:
+    if rostered_weeks_df.empty:
         return pd.Series(default_vals)
+        
+    rostered_weeks = rostered_weeks_df['WeekNum'].unique().astype(int)
     
+    att_rows = rostered_weeks_df[rostered_weeks_df['IsAttended'] == 1]
     present_weeks = att_rows['WeekNum'].unique().astype(int)
-    all_weeks = sorted(df_history['Week'].unique())
-    absent_weeks = [w for w in all_weeks if w not in present_weeks]
+    absent_weeks = [w for w in rostered_weeks if w not in present_weeks]
     
     # 출전 시 성적
-    p_pts_df = team_points_by_week[(team_points_by_week['Week'].isin(present_weeks)) & (team_points_by_week['Team'] == my_team)]['PointsGained']
-    p_gf_df = df_weekly_gf[(df_weekly_gf['Week'].isin(present_weeks)) & (df_weekly_gf['Team'] == my_team)]['GF']
-    p_ga_df = df_weekly_ga[(df_weekly_ga['Week'].isin(present_weeks)) & (df_weekly_ga['Team'] == my_team)]['GA']
+    p_pts_df = team_points_by_week[(team_points_by_week['Week'].isin(present_weeks)) & (team_points_by_week['Team'] == team_name)]['PointsGained']
+    p_gf_df = df_weekly_gf[(df_weekly_gf['Week'].isin(present_weeks)) & (df_weekly_gf['Team'] == team_name)]['GF']
+    p_ga_df = df_weekly_ga[(df_weekly_ga['Week'].isin(present_weeks)) & (df_weekly_ga['Team'] == team_name)]['GA']
     
     avg_p_pts = p_pts_df.mean() if not p_pts_df.empty else 0.0
     avg_p_gf = p_gf_df.mean() if not p_gf_df.empty else 0.0
     avg_p_ga = p_ga_df.mean() if not p_ga_df.empty else 0.0
     
     # 결장 시 성적
-    a_pts_df = team_points_by_week[(team_points_by_week['Week'].isin(absent_weeks)) & (team_points_by_week['Team'] == my_team)]['PointsGained']
-    a_gf_df = df_weekly_gf[(df_weekly_gf['Week'].isin(absent_weeks)) & (df_weekly_gf['Team'] == my_team)]['GF']
-    a_ga_df = df_weekly_ga[(df_weekly_ga['Week'].isin(absent_weeks)) & (df_weekly_ga['Team'] == my_team)]['GA']
+    a_pts_df = team_points_by_week[(team_points_by_week['Week'].isin(absent_weeks)) & (team_points_by_week['Team'] == team_name)]['PointsGained']
+    a_gf_df = df_weekly_gf[(df_weekly_gf['Week'].isin(absent_weeks)) & (df_weekly_gf['Team'] == team_name)]['GF']
+    a_ga_df = df_weekly_ga[(df_weekly_ga['Week'].isin(absent_weeks)) & (df_weekly_ga['Team'] == team_name)]['GA']
     
     avg_a_pts = a_pts_df.mean() if not a_pts_df.empty else 0.0
     avg_a_gf = a_gf_df.mean() if not a_gf_df.empty else 0.0
@@ -417,10 +420,10 @@ def calculate_full_player_metrics(player_name):
         float(len(present_weeks)), float(len(absent_weeks)) # 주차수 (2)
     ])
 
-# 4. 전체 선수에 대해 지표 적용 (인덱스 정렬 유지)
+# 4. 전체 선수에 대해 지표 적용
 metrics_data = []
-for p_name in df_players_base['Player']:
-    metrics_data.append(calculate_full_player_metrics(p_name))
+for idx, row in df_players_base.iterrows():
+    metrics_data.append(calculate_full_player_metrics(row['Player'], row['Team']))
 
 metrics_df = pd.DataFrame(metrics_data)
 metrics_df.columns = [
@@ -431,9 +434,41 @@ metrics_df.columns = [
     '출석주차수', '결장주차수'
 ]
 
-# 인덱스를 기준으로 완벽하게 합침
+# (선수, 속한팀) 기준 통합 지표
 df_players_all = pd.concat([df_players_base, metrics_df], axis=1)
 df_players_all['경기당 득점'] = (df_players_all['득점'] / df_players_all['출석횟수'].replace(0, 1)).fillna(0)
+
+# 5. 탭 2(개인기록)을 위한 통합 데이터프레임 생성
+def weighted_avg(df_group, val_col, weight_col):
+    total_w = df_group[weight_col].sum()
+    if total_w == 0: return df_group[val_col].mean()
+    return (df_group[val_col] * df_group[weight_col]).sum() / total_w
+
+integrated_rows = []
+for p, p_df in df_players_all.groupby('Player'):
+    # 팀이 여러 개일 경우 모두 표시
+    teams = " / ".join(p_df['Team'].unique())
+    att = p_df['출석횟수'].sum()
+    goals = p_df['득점'].sum()
+    
+    pts_sum = p_df['팀승점합계'].sum()
+    gf_sum = p_df['팀득점합계'].sum()
+    ga_sum = p_df['팀실점합계'].sum()
+    
+    integrated_rows.append({
+        'Player': p,
+        'Team': teams,
+        '출석횟수': att,
+        '득점': goals,
+        '경기당 득점': (goals / att) if att > 0 else 0.0,
+        '출전_평균승점': weighted_avg(p_df, '출전_평균승점', '출석횟수'),
+        '출전_평균득점': weighted_avg(p_df, '출전_평균득점', '출석횟수'),
+        '출전_평균실점': weighted_avg(p_df, '출전_평균실점', '출석횟수'),
+        '팀승점합계': pts_sum,
+        '팀득점합계': gf_sum,
+        '팀실점합계': ga_sum
+    })
+df_players_integrated = pd.DataFrame(integrated_rows)
 
 tab1, tab2, tab5, tab3, tab4, tab6 = st.tabs(["🏆 종합 순위", "🏃 개인 기록", "🌟 개인 임팩트", "📈 팀 트렌드", "📊 개인 상세", "📅 주차별 출석표"])
 
@@ -594,7 +629,15 @@ with tab2:
         df_overall = df.sort_values(by=sort_col, ascending=is_ascending).head(10).reset_index(drop=True)
         df_overall.index += 1
         df_overall_disp = df_overall.copy()
-        df_overall_disp['Team'] = df_overall_disp['Team'].map(team_short_map)
+        
+        # Team이 통합 텍스트일 수 있으므로 포맷팅 (다중팀 대응)
+        def format_teams(team_str):
+            if isinstance(team_str, str):
+                return " / ".join([team_short_map.get(t.strip(), t.strip()) for t in team_str.split('/')])
+            return team_str
+            
+        df_overall_disp['Team'] = df_overall_disp['Team'].apply(format_teams)
+        
         st.markdown(f"**전체 순위**")
         st.markdown(df_to_html_table(df_overall_disp[display_cols].rename(columns=rename_map)), unsafe_allow_html=True)
         
@@ -604,7 +647,8 @@ with tab2:
         for i, t_raw in enumerate(teams):
             with t_cols[i]:
                 st.markdown(f"**{display_team_map.get(t_raw)}**")
-                t_df = df[df['Team'] == t_raw].sort_values(by=sort_col, ascending=is_ascending).head(5).reset_index(drop=True)
+                # 문자열 포함 검사로 다중 팀 소속 선수 모두 표시
+                t_df = df[df['Team'].str.contains(t_raw, regex=False, na=False)].sort_values(by=sort_col, ascending=is_ascending).head(5).reset_index(drop=True)
                 t_df.index += 1
                 # 팀별 표에는 팀 이름을 뺌
                 t_disp_cols = [c for c in display_cols if c != 'Team']
@@ -614,7 +658,7 @@ with tab2:
 
     # 1. Golden Boot
     display_personal_rankings(
-        df_players_all, 
+        df_players_integrated, 
         sort_col='득점', 
         title="👟 Golden Boot (Top 10)", 
         caption="리그 최고의 득점 기계! 가장 많은 득점을 기록한 주인공입니다.",
@@ -624,7 +668,7 @@ with tab2:
     
     # 2. 아이언 맨
     display_personal_rankings(
-        df_players_all, 
+        df_players_integrated, 
         sort_col='출석횟수', 
         title="🦸 아이언 맨 (Top 10)", 
         caption="리그의 기둥! 성실함의 상징, 철의 체력으로 모든 경기를 함께합니다.",
@@ -633,7 +677,7 @@ with tab2:
     )
 
     # 3. 가성비 스트라이커
-    df_eff_base = df_players_all[df_players_all['출석횟수'] > 0].copy()
+    df_eff_base = df_players_integrated[df_players_integrated['출석횟수'] > 0].copy()
     df_eff_base['출석 당 득점_disp'] = df_eff_base['경기당 득점'].apply(lambda x: f'{x:.2f}')
     display_personal_rankings(
         df_eff_base, 
@@ -645,7 +689,7 @@ with tab2:
     )
     
     # 4. 승리 요정
-    df_lucky_base = df_players_all[df_players_all['출석횟수'] > 0].copy()
+    df_lucky_base = df_players_integrated[df_players_integrated['출석횟수'] > 0].copy()
     df_lucky_base['출석 당 팀승점_disp'] = df_lucky_base['출전_평균승점'].apply(lambda x: f'{x:.2f}')
     display_personal_rankings(
         df_lucky_base, 
@@ -657,7 +701,7 @@ with tab2:
     )
     
     # 5. 득점 폭격기
-    df_gf_base = df_players_all[df_players_all['출석횟수'] > 0].copy()
+    df_gf_base = df_players_integrated[df_players_integrated['출석횟수'] > 0].copy()
     df_gf_base['출석 당 팀득점_disp'] = df_gf_base['출전_평균득점'].apply(lambda x: f'{x:.2f}')
     display_personal_rankings(
         df_gf_base, 
@@ -669,7 +713,7 @@ with tab2:
     )
     
     # 6. 통곡의 벽
-    df_shield_base = df_players_all[df_players_all['출석횟수'] > 0].copy()
+    df_shield_base = df_players_integrated[df_players_integrated['출석횟수'] > 0].copy()
     df_shield_base['출석 당 팀실점_disp'] = df_shield_base['출전_평균실점'].apply(lambda x: f'{x:.2f}')
     display_personal_rankings(
         df_shield_base, 
@@ -1210,11 +1254,12 @@ with tab6:
         def is_attended(val):
             return is_attended_val(val)
 
-        # 각 행(선수)별로 출석률 및 횟수 계산
-        total_weeks = len(week_cols)
         def format_cumulative(row):
             count = sum(is_attended(v) for v in row)
-            percentage = (count / total_weeks * 100) if total_weeks > 0 else 0
+            # 빈 셀('#', 'nan', '')은 해당 선수가 팀 로스터에 없었던 주차이므로 제외
+            valid_weeks = sum(1 for v in row if str(v).strip() != '' and str(v).lower() != 'nan')
+            
+            percentage = (count / valid_weeks * 100) if valid_weeks > 0 else 0
             return f"{percentage:.2f}%({count})"
             
         plot_df['출석률(출석횟수)'] = df_team_att[week_cols].apply(format_cumulative, axis=1)
